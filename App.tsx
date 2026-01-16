@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function App() {
   return (
@@ -19,7 +20,11 @@ export default function App() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Empty for now - will contain workout logs */}
+        {/* Empty state */}
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateTitle}>No workouts yet</Text>
+          <Text style={styles.emptyStateSubtitle}>Tap the mic to record your first exercise</Text>
+        </View>
       </ScrollView>
 
       {/* Large circular microphone button */}
@@ -32,8 +37,9 @@ export default function App() {
             console.log('Microphone button pressed');
           }}
         >
-          <Text style={styles.micIcon}>🎤</Text>
+          <Ionicons name="mic-outline" size={48} color="#FFFFFF" />
         </TouchableOpacity>
+        <Text style={styles.micButtonLabel}>Tap to record</Text>
       </View>
     </SafeAreaView>
   );
@@ -49,7 +55,26 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100, // Space for the button
+    paddingBottom: 160, // Space for the button
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#CCCCCC',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtitle: {
+    fontSize: 16,
+    color: '#888888',
+    textAlign: 'center',
   },
   buttonContainer: {
     position: 'absolute',
@@ -63,20 +88,25 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FF4444',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 5,
-    shadowColor: '#FF4444',
+    elevation: 2,
+    shadowColor: '#FFFFFF',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  micIcon: {
-    fontSize: 40,
+  micButtonLabel: {
+    color: '#CCCCCC',
+    fontSize: 14,
+    marginTop: 12,
+    fontWeight: '400',
   },
 });
 
