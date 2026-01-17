@@ -21,6 +21,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const pulseScale = useSharedValue(1);
   const isRecordingRef = useRef(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingStartTimeRef = useRef<number | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -56,6 +57,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
       recordingRef.current = recording;
+      recordingStartTimeRef.current = Date.now();
 
       isRecordingRef.current = true;
       setIsRecording(true);
@@ -76,11 +78,30 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       return;
     }
 
+    const duration = recordingStartTimeRef.current
+      ? Date.now() - recordingStartTimeRef.current
+      : 0;
+    const isCancel = duration < 400;
+
     isRecordingRef.current = false;
     setIsRecording(false);
     scale.value = withSpring(1);
     cancelAnimation(pulseScale);
     pulseScale.value = 1;
+    recordingStartTimeRef.current = null;
+
+    if (isCancel) {
+      // Cancel short recordings without logging or error
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch {
+          // Silently ignore errors for cancelled recordings
+        }
+        recordingRef.current = null;
+      }
+      return;
+    }
 
     try {
       if (recordingRef.current) {
@@ -92,7 +113,14 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
         }
         recordingRef.current = null;
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Gracefully catch "no valid audio data" and similar errors
+      const errorMessage = err?.message || String(err);
+      if (errorMessage.includes('no valid audio data') || 
+          errorMessage.includes('audio data')) {
+        // Silently handle invalid audio data errors
+        return;
+      }
       console.error('Failed to stop recording', err);
     }
   };
