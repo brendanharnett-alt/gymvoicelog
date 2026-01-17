@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,6 +22,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
   const isRecordingRef = useRef(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -32,26 +34,45 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
         scale.value = 1;
         pulseScale.value = 1;
       }
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
     };
   }, [scale, pulseScale]);
 
-  const handleStartRecording = () => {
+  const handleStartRecording = async () => {
     // Guard against duplicate start calls
     if (isRecordingRef.current) {
       return;
     }
 
-    isRecordingRef.current = true;
-    setIsRecording(true);
-    scale.value = withSpring(1.15);
-    pulseScale.value = withRepeat(
-      withTiming(1.3, { duration: 1000 }),
-      -1,
-      true
-    );
+    try {
+      await Audio.requestPermissionsAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = recording;
+
+      isRecordingRef.current = true;
+      setIsRecording(true);
+      scale.value = withSpring(1.15);
+      pulseScale.value = withRepeat(
+        withTiming(1.3, { duration: 1000 }),
+        -1,
+        true
+      );
+    } catch (err) {
+      console.error('Failed to start recording', err);
+    }
   };
 
-  const handleStopRecording = () => {
+  const handleStopRecording = async () => {
     // Guard against duplicate stop calls
     if (!isRecordingRef.current) {
       return;
@@ -62,6 +83,21 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     scale.value = withSpring(1);
     cancelAnimation(pulseScale);
     pulseScale.value = 1;
+
+    try {
+      if (recordingRef.current) {
+        await recordingRef.current.stopAndUnloadAsync();
+        const uri = recordingRef.current.getURI();
+        if (uri) {
+          console.log('Audio recording saved at:', uri);
+          // Log the URI - transcription/upload will be added later
+        }
+        recordingRef.current = null;
+      }
+    } catch (err) {
+      console.error('Failed to stop recording', err);
+    }
+
     setShowInputModal(true);
   };
 
