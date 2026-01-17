@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,6 +15,9 @@ import Animated, {
 interface RecordButtonProps {
   onRecordingComplete: (transcript: string) => void;
 }
+
+const BACKEND_URL  = 'http://192.168.1.97:3001/transcribe';
+
 
 export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
@@ -112,11 +116,40 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       if (recordingRef.current) {
         await recordingRef.current.stopAndUnloadAsync();
         const uri = recordingRef.current.getURI();
-        if (uri) {
-          console.log('Audio recording saved at:', uri);
-          // Log the URI - transcription/upload will be added later
-        }
         recordingRef.current = null;
+
+        if (uri) {
+          try {
+            const formData = new FormData();
+            formData.append('audio', {
+              uri,
+              type: 'audio/m4a',
+              name: 'recording.m4a',
+            } as any);
+
+            const response = await fetch(BACKEND_URL, {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error(`Upload failed: ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result.text) {
+              onRecordingComplete(result.text);
+            }
+          } catch (err) {
+            console.error('Failed to upload/transcribe audio', err);
+          } finally {
+            try {
+              await FileSystem.deleteAsync(uri, { idempotent: true });
+            } catch {
+              // Silently ignore deletion errors
+            }
+          }
+        }
       }
     } catch (err: any) {
       // Gracefully catch "no valid audio data" and similar errors
