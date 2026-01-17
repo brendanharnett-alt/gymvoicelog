@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useWorkoutStore } from './src/hooks/useWorkoutStore';
 import { DateHeader } from './src/components/DateHeader';
 import { SwipeContainer } from './src/components/SwipeContainer';
@@ -91,8 +92,9 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -164,7 +166,8 @@ export default function App() {
         onOpenChange={setIsEditDialogOpen}
         onSave={handleSaveEntry}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
