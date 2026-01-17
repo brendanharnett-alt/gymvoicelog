@@ -22,6 +22,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const isRecordingRef = useRef(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
+  const isTransitioningRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -41,11 +42,12 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   }, [scale, pulseScale]);
 
   const handleStartRecording = async () => {
-    // Guard against duplicate start calls
-    if (isRecordingRef.current) {
+    // Guard against duplicate start calls and transitions
+    if (isRecordingRef.current || isTransitioningRef.current) {
       return;
     }
 
+    isTransitioningRef.current = true;
     try {
       await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
@@ -69,12 +71,14 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       );
     } catch (err) {
       console.error('Failed to start recording', err);
+    } finally {
+      isTransitioningRef.current = false;
     }
   };
 
   const handleStopRecording = async () => {
-    // Guard against duplicate stop calls
-    if (!isRecordingRef.current) {
+    // Guard against duplicate stop calls and transitions
+    if (!isRecordingRef.current || isTransitioningRef.current) {
       return;
     }
 
@@ -90,20 +94,21 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     pulseScale.value = 1;
     recordingStartTimeRef.current = null;
 
-    if (isCancel) {
-      // Cancel short recordings without logging or error
-      if (recordingRef.current) {
-        try {
-          await recordingRef.current.stopAndUnloadAsync();
-        } catch {
-          // Silently ignore errors for cancelled recordings
-        }
-        recordingRef.current = null;
-      }
-      return;
-    }
-
+    isTransitioningRef.current = true;
     try {
+      if (isCancel) {
+        // Cancel short recordings without logging or error
+        if (recordingRef.current) {
+          try {
+            await recordingRef.current.stopAndUnloadAsync();
+          } catch {
+            // Silently ignore errors for cancelled recordings
+          }
+          recordingRef.current = null;
+        }
+        return;
+      }
+
       if (recordingRef.current) {
         await recordingRef.current.stopAndUnloadAsync();
         const uri = recordingRef.current.getURI();
@@ -122,6 +127,8 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
         return;
       }
       console.error('Failed to stop recording', err);
+    } finally {
+      isTransitioningRef.current = false;
     }
   };
 
