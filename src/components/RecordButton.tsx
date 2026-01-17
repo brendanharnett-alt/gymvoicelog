@@ -10,7 +10,6 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { WorkoutInputModal } from './WorkoutInputModal';
 
 interface RecordButtonProps {
   onRecordingComplete: (transcript: string) => void;
@@ -18,7 +17,6 @@ interface RecordButtonProps {
 
 export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
-  const [showInputModal, setShowInputModal] = useState(false);
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
   const isRecordingRef = useRef(false);
@@ -97,13 +95,6 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     } catch (err) {
       console.error('Failed to stop recording', err);
     }
-
-    setShowInputModal(true);
-  };
-
-  const handleSave = (text: string) => {
-    onRecordingComplete(text);
-    setShowInputModal(false);
   };
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -138,12 +129,6 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       <Text style={styles.label}>
         {isRecording ? 'Recording...' : 'Hold to record'}
       </Text>
-      
-      <WorkoutInputModal
-        visible={showInputModal}
-        onClose={() => setShowInputModal(false)}
-        onSave={handleSave}
-      />
     </View>
   );
 }
