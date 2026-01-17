@@ -14,6 +14,7 @@ import { WorkoutEntry } from '../types/workout';
 interface WorkoutCardProps {
   entry: WorkoutEntry;
   onUpdate: (updates: Partial<WorkoutEntry>) => void;
+  onDelete?: () => void;
   autoFocus?: boolean; // Auto-focus title when true
 }
 
@@ -49,7 +50,12 @@ function getDisplayLine(entry: WorkoutEntry): string {
   return 'Untitled entry';
 }
 
-export function WorkoutCard({ entry, onUpdate, autoFocus = false }: WorkoutCardProps) {
+export function WorkoutCard({
+  entry,
+  onUpdate,
+  onDelete,
+  autoFocus = false,
+}: WorkoutCardProps) {
   const [cardState, setCardState] = useState<CardState>('collapsed');
   const [title, setTitle] = useState(entry.title || '');
   const [description, setDescription] = useState(entry.description || '');
@@ -130,10 +136,17 @@ export function WorkoutCard({ entry, onUpdate, autoFocus = false }: WorkoutCardP
     debouncedSave({ weightUnit: newUnit });
   };
 
-  // Handle card tap
-  const handleCardTap = () => {
+  // Handle edit (expand card)
+  const handleEdit = () => {
     if (cardState === 'collapsed') {
       setCardState('expanded-light');
+    }
+  };
+
+  // Handle delete
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete();
     }
   };
 
@@ -162,11 +175,29 @@ export function WorkoutCard({ entry, onUpdate, autoFocus = false }: WorkoutCardP
   // Collapsed view
   if (cardState === 'collapsed') {
     return (
-      <TouchableOpacity style={styles.card} onPress={handleCardTap} activeOpacity={0.7}>
+      <View style={styles.card}>
         <View style={styles.collapsedContent}>
-          <Text style={styles.displayLine} numberOfLines={1}>
-            {displayLine}
-          </Text>
+          <View style={styles.collapsedHeader}>
+            <Text style={styles.displayLine} numberOfLines={1}>
+              {displayLine}
+            </Text>
+            <View style={styles.collapsedActions}>
+              <TouchableOpacity
+                onPress={handleEdit}
+                style={styles.actionButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="create-outline" size={18} color="#888" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={styles.actionButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="trash-outline" size={18} color="#FF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
           <View style={styles.collapsedMeta}>
             <Text style={styles.timestamp}>{timestamp}</Text>
           </View>
@@ -176,17 +207,20 @@ export function WorkoutCard({ entry, onUpdate, autoFocus = false }: WorkoutCardP
             </Text>
           )}
         </View>
-      </TouchableOpacity>
+      </View>
     );
   }
 
   // Expanded views
   return (
     <View style={[styles.card, styles.expandedCard]}>
-      {/* Header with collapse button */}
+      {/* Header with collapse and delete buttons */}
       <View style={styles.expandedHeader}>
         <TouchableOpacity onPress={handleCollapse} style={styles.collapseButton}>
           <Ionicons name="chevron-up" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+          <Ionicons name="trash-outline" size={18} color="#FF4444" />
         </TouchableOpacity>
       </View>
 
@@ -329,11 +363,26 @@ const styles = StyleSheet.create({
   collapsedContent: {
     flex: 1,
   },
+  collapsedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   displayLine: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 6,
+    flex: 1,
+    marginRight: 8,
+  },
+  collapsedActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    padding: 4,
   },
   collapsedMeta: {
     flexDirection: 'row',
@@ -353,9 +402,13 @@ const styles = StyleSheet.create({
   expandedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   collapseButton: {
+    padding: 4,
+  },
+  deleteButton: {
     padding: 4,
   },
   expandedContent: {

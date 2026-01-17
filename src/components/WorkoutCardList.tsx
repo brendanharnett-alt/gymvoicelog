@@ -85,6 +85,7 @@ export function WorkoutCardList({
               key={entry.id}
               entry={entry}
               onUpdate={(updates) => handleUpdate(entry.id, updates)}
+              onDelete={() => handleDelete(entry.id)}
               autoFocus={newlyCreatedId === entry.id}
             />
           ))
