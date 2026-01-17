@@ -203,9 +203,15 @@ export function useWorkoutStore() {
   }, [currentDate, triggerSave]);
 
   const goToNextDay = useCallback(() => {
+    const today = normalizeDate(new Date());
     const nextDate = new Date(currentDate);
     nextDate.setDate(nextDate.getDate() + 1);
-    setCurrentDate(normalizeDate(nextDate));
+    const normalizedNext = normalizeDate(nextDate);
+    
+    // Only navigate if next date is not beyond today
+    if (normalizedNext.getTime() <= today.getTime()) {
+      setCurrentDate(normalizedNext);
+    }
   }, [currentDate]);
 
   const goToPrevDay = useCallback(() => {
@@ -215,7 +221,13 @@ export function useWorkoutStore() {
   }, [currentDate]);
 
   const goToDate = useCallback((date: Date) => {
-    setCurrentDate(normalizeDate(date));
+    const today = normalizeDate(new Date());
+    const normalizedDate = normalizeDate(date);
+    
+    // Only navigate if date is not beyond today
+    if (normalizedDate.getTime() <= today.getTime()) {
+      setCurrentDate(normalizedDate);
+    }
   }, []);
 
   return {

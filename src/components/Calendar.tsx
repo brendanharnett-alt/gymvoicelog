@@ -38,6 +38,7 @@ export function Calendar({ selectedDate, month, onMonthChange, onSelect, onMonth
       date.setHours(0, 0, 0, 0);
       const isSelected = date.getTime() === selectedDate.getTime();
       const isToday = date.getTime() === today.getTime();
+      const isFuture = date.getTime() > today.getTime();
       
       days.push(
         <TouchableOpacity
@@ -46,10 +47,16 @@ export function Calendar({ selectedDate, month, onMonthChange, onSelect, onMonth
             styles.day,
             isSelected && styles.daySelected,
             isToday && styles.dayToday,
+            isFuture && styles.dayDisabled,
           ]}
-          onPress={() => onSelect(date)}
+          onPress={() => !isFuture && onSelect(date)}
+          disabled={isFuture}
         >
-          <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>
+          <Text style={[
+            styles.dayText, 
+            isSelected && styles.dayTextSelected,
+            isFuture && styles.dayTextDisabled,
+          ]}>
             {day}
           </Text>
         </TouchableOpacity>
@@ -158,9 +165,15 @@ const styles = StyleSheet.create({
     borderColor: '#FF4444',
     borderRadius: 8,
   },
+  dayDisabled: {
+    opacity: 0.3,
+  },
   dayTextSelected: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  dayTextDisabled: {
+    color: '#666666',
   },
 });
 

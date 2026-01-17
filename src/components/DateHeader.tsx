@@ -14,6 +14,10 @@ export function DateHeader({ date, onPrevDay, onNextDay, onOpenCalendar }: DateH
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
+  const normalizedDate = new Date(date);
+  normalizedDate.setHours(0, 0, 0, 0);
+  const isToday = normalizedDate.getTime() === today.getTime();
+  
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={onPrevDay} style={styles.navButton}>
@@ -25,8 +29,16 @@ export function DateHeader({ date, onPrevDay, onNextDay, onOpenCalendar }: DateH
         <Text style={styles.dateLabel}>{formatDate(date)}</Text>
       </TouchableOpacity>
       
-      <TouchableOpacity onPress={onNextDay} style={styles.navButton}>
-        <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+      <TouchableOpacity 
+        onPress={onNextDay} 
+        style={styles.navButton}
+        disabled={isToday}
+      >
+        <Ionicons 
+          name="chevron-forward" 
+          size={24} 
+          color={isToday ? "#444444" : "#FFFFFF"} 
+        />
       </TouchableOpacity>
     </View>
   );
