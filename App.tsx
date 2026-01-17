@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
-  SafeAreaView,
   Modal,
   TouchableOpacity,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWorkoutStore } from './src/hooks/useWorkoutStore';
 import { DateHeader } from './src/components/DateHeader';
 import { SwipeContainer } from './src/components/SwipeContainer';
@@ -93,7 +93,7 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
         <StatusBar style="light" />
       
       {/* Header */}
