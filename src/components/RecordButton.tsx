@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -7,6 +7,7 @@ import Animated, {
   withSpring,
   withRepeat,
   withTiming,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { WorkoutInputModal } from './WorkoutInputModal';
 
@@ -19,24 +20,49 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const [showInputModal, setShowInputModal] = useState(false);
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
+  const isRecordingRef = useRef(false);
 
-  const handlePress = () => {
-    if (isRecording) {
-      // Stop recording and show input modal
-      setIsRecording(false);
-      scale.value = withSpring(1);
-      pulseScale.value = 1;
-      setShowInputModal(true);
-    } else {
-      // Start recording
-      setIsRecording(true);
-      scale.value = withSpring(1.1);
-      pulseScale.value = withRepeat(
-        withTiming(1.2, { duration: 1000 }),
-        -1,
-        true
-      );
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (isRecordingRef.current) {
+        // Stop any ongoing recording if component unmounts mid-press
+        isRecordingRef.current = false;
+        cancelAnimation(pulseScale);
+        scale.value = 1;
+        pulseScale.value = 1;
+      }
+    };
+  }, [scale, pulseScale]);
+
+  const handleStartRecording = () => {
+    // Guard against duplicate start calls
+    if (isRecordingRef.current) {
+      return;
     }
+
+    isRecordingRef.current = true;
+    setIsRecording(true);
+    scale.value = withSpring(1.15);
+    pulseScale.value = withRepeat(
+      withTiming(1.3, { duration: 1000 }),
+      -1,
+      true
+    );
+  };
+
+  const handleStopRecording = () => {
+    // Guard against duplicate stop calls
+    if (!isRecordingRef.current) {
+      return;
+    }
+
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    scale.value = withSpring(1);
+    cancelAnimation(pulseScale);
+    pulseScale.value = 1;
+    setShowInputModal(true);
   };
 
   const handleSave = (text: string) => {
@@ -61,20 +87,20 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     <View style={styles.container}>
       <Animated.View style={[styles.pulseRing, pulseStyle]} />
       <Animated.View style={animatedStyle}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.button, isRecording && styles.buttonRecording]}
-          onPress={handlePress}
-          activeOpacity={0.8}
+          onPressIn={handleStartRecording}
+          onPressOut={handleStopRecording}
         >
           <Ionicons
             name={isRecording ? 'mic' : 'mic-outline'}
             size={42}
             color="#FFFFFF"
           />
-        </TouchableOpacity>
+        </Pressable>
       </Animated.View>
       <Text style={styles.label}>
-        {isRecording ? 'Recording...' : 'Tap to record'}
+        {isRecording ? 'Recording...' : 'Hold to record'}
       </Text>
       
       <WorkoutInputModal
