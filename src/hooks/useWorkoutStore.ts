@@ -38,7 +38,7 @@ export function useWorkoutStore() {
     return newWorkout;
   }, [currentDate]);
 
-  const addEntry = useCallback((text: string) => {
+  const addEntry = useCallback((text: string = '') => {
     const key = getDateKey(currentDate);
     const workout = workoutsByDate.get(key) || {
       date: new Date(currentDate),
@@ -57,6 +57,8 @@ export function useWorkoutStore() {
     
     // Trigger re-render by updating current date reference
     setCurrentDate(new Date(currentDate));
+    
+    return newEntry; // Return the new entry so caller can get its ID
   }, [currentDate]);
 
   const updateEntry = useCallback((id: string, updates: Partial<WorkoutEntry>) => {

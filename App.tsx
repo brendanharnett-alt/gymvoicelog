@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWorkoutStore } from './src/hooks/useWorkoutStore';
 import { DateHeader } from './src/components/DateHeader';
 import { SwipeContainer } from './src/components/SwipeContainer';
-import { DraggableWorkoutList } from './src/components/DraggableWorkoutList';
+import { WorkoutCardList } from './src/components/WorkoutCardList';
 import { RecordButton } from './src/components/RecordButton';
 import { EditWorkoutDialog } from './src/components/EditWorkoutDialog';
 import { Calendar } from './src/components/Calendar';
@@ -109,11 +109,11 @@ export default function App() {
       {/* Workout List with Swipe */}
       <SwipeContainer onSwipeLeft={goToNextDay} onSwipeRight={goToPrevDay}>
         <View style={styles.content}>
-          <DraggableWorkoutList
+          <WorkoutCardList
             dayWorkout={currentDayWorkout}
+            onAddEntry={() => addEntry('')}
+            onUpdateEntry={updateEntry}
             onDeleteEntry={handleDeleteEntry}
-            onEditEntry={handleEditEntry}
-            onReorderEntries={handleReorderEntries}
           />
         </View>
       </SwipeContainer>
