@@ -20,34 +20,30 @@ interface WorkoutCardProps {
 
 type CardState = 'collapsed' | 'expanded-light' | 'expanded-details';
 
-// Compute display line for collapsed view
-function getDisplayLine(entry: WorkoutEntry): string {
-  // Priority 1: Exercise with weight and reps
+// Compute exercise name for collapsed view
+function getExerciseName(entry: WorkoutEntry): string {
   if (entry.exercise) {
-    if (entry.weight !== undefined && entry.weight > 0 && entry.reps !== undefined && entry.reps > 0) {
-      const unit = entry.weightUnit === 'kg' ? 'kg' : 'lb';
-      return `${entry.exercise} · ${entry.weight}${unit} × ${entry.reps}`;
-    }
-    // Priority 2: Exercise with duration
-    if (entry.duration !== undefined && entry.duration > 0) {
-      return `${entry.exercise} · ${entry.duration} min`;
-    }
-    // Priority 3: Just exercise
     return entry.exercise;
   }
-  
-  // Priority 4: Title
   if (entry.title && entry.title.trim()) {
     return entry.title;
   }
-  
-  // Priority 5: Legacy text field
   if (entry.text && entry.text.trim()) {
     return entry.text;
   }
-  
-  // Fallback
   return 'Untitled entry';
+}
+
+// Compute set details for collapsed view
+function getSetDetails(entry: WorkoutEntry): string | null {
+  if (entry.weight !== undefined && entry.weight > 0 && entry.reps !== undefined && entry.reps > 0) {
+    const unit = entry.weightUnit === 'kg' ? 'kg' : 'lb';
+    return `${entry.weight}${unit} × ${entry.reps}`;
+  }
+  if (entry.duration !== undefined && entry.duration > 0) {
+    return `${entry.duration} min`;
+  }
+  return null;
 }
 
 export function WorkoutCard({
@@ -165,7 +161,8 @@ export function WorkoutCard({
     }
   };
 
-  const displayLine = getDisplayLine(entry);
+  const exerciseName = getExerciseName(entry);
+  const setDetails = getSetDetails(entry);
   // Ensure timestamp is a Date object
   const timestampDate = entry.timestamp instanceof Date 
     ? entry.timestamp 
@@ -178,9 +175,11 @@ export function WorkoutCard({
       <View style={styles.card}>
         <View style={styles.collapsedContent}>
           <View style={styles.collapsedHeader}>
-            <Text style={styles.displayLine} numberOfLines={1}>
-              {displayLine}
-            </Text>
+            <View style={styles.exerciseNameContainer}>
+              <Text style={styles.exerciseName}>
+                {exerciseName}
+              </Text>
+            </View>
             <View style={styles.collapsedActions}>
               <TouchableOpacity
                 onPress={handleEdit}
@@ -198,11 +197,16 @@ export function WorkoutCard({
               </TouchableOpacity>
             </View>
           </View>
+          {setDetails && (
+            <Text style={styles.setDetails}>
+              {setDetails}
+            </Text>
+          )}
           <View style={styles.collapsedMeta}>
             <Text style={styles.timestamp}>{timestamp}</Text>
           </View>
           {entry.rawTranscription && (
-            <Text style={styles.rawTranscription} numberOfLines={1}>
+            <Text style={styles.rawTranscription}>
               {entry.rawTranscription}
             </Text>
           )}
@@ -249,7 +253,6 @@ export function WorkoutCard({
             placeholder="Felt heavy on last rep"
             placeholderTextColor="#666"
             multiline={true}
-            numberOfLines={3}
           />
         </View>
 
@@ -365,16 +368,26 @@ const styles = StyleSheet.create({
   },
   collapsedHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  displayLine: {
+  exerciseNameContainer: {
+    flex: 1,
+    marginRight: 8,
+    flexShrink: 1,
+  },
+  exerciseName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    flex: 1,
-    marginRight: 8,
+    flexWrap: 'wrap',
+  },
+  setDetails: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    marginTop: 4,
+    marginBottom: 6,
   },
   collapsedActions: {
     flexDirection: 'row',
@@ -398,6 +411,7 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginTop: 6,
     fontStyle: 'italic',
+    flexWrap: 'wrap',
   },
   expandedHeader: {
     flexDirection: 'row',
@@ -434,7 +448,6 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A2A',
   },
   textArea: {
-    minHeight: 80,
     textAlignVertical: 'top',
   },
   detailsToggle: {

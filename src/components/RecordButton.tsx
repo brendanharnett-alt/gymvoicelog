@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface RecordButtonProps {
-  onRecordingComplete: (transcript: string) => void;
+  onRecordingComplete: (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => void;
 }
 
 const BACKEND_URL  = 'http://192.168.1.97:3001/transcribe';
@@ -137,8 +137,9 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
             }
 
             const result = await response.json();
-            if (result.text) {
-              onRecordingComplete(result.text);
+            if (result.transcript) {
+              // Pass the full result object instead of just transcript
+              onRecordingComplete(result);
             }
           } catch (err) {
             console.error('Failed to upload/transcribe audio', err);

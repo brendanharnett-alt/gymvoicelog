@@ -40,10 +40,28 @@ export default function App() {
   const [calendarView, setCalendarView] = useState<CalendarView>('days');
   const [calendarMonth, setCalendarMonth] = useState<Date>(startOfMonth(currentDate));
 
-  const handleRecordingComplete = (transcript: string) => {
-    addEntry(transcript);
+  const handleRecordingComplete = (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => {
+    // Use summary if available, otherwise fall back to transcript
+    const displayText = result.summary || result.transcript;
+    
+    // Create entry with summary as title/description and transcript as rawTranscription
+    const newEntry = addEntry(displayText);
+    
+    // Update with structured data
+    if (result.summary) {
+      updateEntry(newEntry.id, {
+        title: result.summary,
+        rawTranscription: result.transcript,
+      });
+    } else {
+      // Fallback: if no summary, store transcript as rawTranscription
+      updateEntry(newEntry.id, {
+        rawTranscription: result.transcript,
+      });
+    }
+    
     // In production, you'd use a toast library like react-native-toast-message
-    console.log('Workout logged:', transcript);
+    console.log('Workout logged:', { summary: result.summary, transcript: result.transcript });
   };
 
   const handleDeleteEntry = (id: string) => {
