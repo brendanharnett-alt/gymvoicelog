@@ -16,7 +16,7 @@ interface RecordButtonProps {
   onRecordingComplete: (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => void;
 }
 
-const BACKEND_URL  = 'http://192.168.1.97:3001/transcribe';
+const BACKEND_URL  = 'https://gymvoicelog-stt-production.up.railway.app/transcribe';
 
 
 export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
