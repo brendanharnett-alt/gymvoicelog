@@ -6,11 +6,18 @@
     "orientation": "portrait",
     "icon": "./assets/adaptive-icon.png",
     "userInterfaceStyle": "dark",
+
+    "splash": {
+      "backgroundColor": "#000000"
+    },
+
     "assetBundlePatterns": ["**/*"],
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gymvoicelog.app"
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -18,6 +25,7 @@
       },
       "package": "com.gymvoicelog.app"
     },
+
     "extra": {
       "eas": {
         "projectId": "d80220a8-f646-4757-819a-363cbadb3c4c"
