@@ -21,11 +21,29 @@ const BACKEND_URL  = 'https://gymvoicelog-stt-production.up.railway.app/transcri
 
 export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
   const isRecordingRef = useRef(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const isTransitioningRef = useRef(false);
+
+  // Pre-request permissions and set audio mode on mount for faster recording start
+  useEffect(() => {
+    const prepareAudio = async () => {
+      try {
+        await Audio.requestPermissionsAsync();
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+      } catch (err) {
+        // Silently handle permission errors - will retry on recording start
+        console.error('Failed to prepare audio', err);
+      }
+    };
+    prepareAudio();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -44,7 +62,22 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     };
   }, [scale, pulseScale]);
 
+  const handlePressIn = () => {
+    // Prevent interaction during transcription
+    if (isTranscribing) {
+      return;
+    }
+    // Provide immediate visual feedback on press (but don't start recording)
+    if (!isRecordingRef.current) {
+      scale.value = withSpring(1.05);
+    }
+  };
+
   const handleLongPress = () => {
+    // Prevent interaction during transcription
+    if (isTranscribing) {
+      return;
+    }
     // If already recording, ignore this long press - user should release to stop
     if (isRecordingRef.current) {
       return;
@@ -62,11 +95,17 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
 
     isTransitioningRef.current = true;
     try {
-      await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      // Permissions and audio mode should already be set, but retry if needed
+      try {
+        await Audio.requestPermissionsAsync();
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+      } catch (permErr) {
+        // If pre-setup failed, try again
+        console.error('Audio setup retry', permErr);
+      }
 
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
@@ -89,6 +128,11 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   };
 
   const handlePressOut = async () => {
+    // Reset visual feedback if not recording
+    if (!isRecordingRef.current) {
+      scale.value = withSpring(1);
+    }
+
     // Stop recording if it's active
     if (isRecordingRef.current) {
       await handleStopRecording();
@@ -118,6 +162,9 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
         recordingRef.current = null;
 
         if (uri) {
+          // Set transcribing state to show indicator and disable button
+          setIsTranscribing(true);
+          
           try {
             const formData = new FormData();
             formData.append('audio', {
@@ -143,6 +190,8 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
           } catch (err) {
             console.error('Failed to upload/transcribe audio', err);
           } finally {
+            // Clear transcribing state
+            setIsTranscribing(false);
             try {
               await FileSystem.deleteAsync(uri, { idempotent: true });
             } catch {
@@ -182,21 +231,41 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     <View style={styles.container}>
       <Animated.View style={[styles.pulseRing, pulseStyle]} />
       <Animated.View style={animatedStyle}>
-        <Pressable
-          style={[styles.button, isRecording && styles.buttonRecording]}
-          onLongPress={handleLongPress}
-          onPressOut={handlePressOut}
-          delayLongPress={200}
-        >
-          <Ionicons
-            name={isRecording ? 'mic' : 'mic-outline'}
-            size={42}
-            color="#FFFFFF"
-          />
-        </Pressable>
+        <View style={styles.buttonWrapper}>
+          <Pressable
+            style={[
+              styles.button,
+              isRecording && styles.buttonRecording,
+              isTranscribing && styles.buttonDisabled,
+            ]}
+            onPressIn={handlePressIn}
+            onLongPress={handleLongPress}
+            onPressOut={handlePressOut}
+            delayLongPress={100}
+            disabled={isTranscribing}
+          >
+            <Ionicons
+              name={isRecording ? 'mic' : 'mic-outline'}
+              size={42}
+              color={isTranscribing ? '#666666' : '#FFFFFF'}
+            />
+          </Pressable>
+          {isTranscribing && (
+            <View style={styles.transcriptionOverlay}>
+              <View style={styles.transcriptionIndicator}>
+                <Ionicons name="document-text-outline" size={24} color="#FFFFFF" />
+                <Text style={styles.transcriptionText}>Transcribing...</Text>
+              </View>
+            </View>
+          )}
+        </View>
       </Animated.View>
       <Text style={styles.label}>
-        {isRecording ? 'Recording...' : 'Hold to record'}
+        {isTranscribing
+          ? 'Transcribing...'
+          : isRecording
+          ? 'Recording...'
+          : 'Hold to record'}
       </Text>
     </View>
   );
@@ -228,6 +297,36 @@ const styles = StyleSheet.create({
   buttonRecording: {
     backgroundColor: '#FF4444',
     borderColor: '#FF4444',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonWrapper: {
+    position: 'relative',
+  },
+  transcriptionOverlay: {
+    position: 'absolute',
+    top: -50,
+    left: -30,
+    right: -30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transcriptionIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    gap: 8,
+  },
+  transcriptionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
   },
   pulseRing: {
     position: 'absolute',
