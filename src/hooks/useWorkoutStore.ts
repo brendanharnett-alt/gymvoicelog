@@ -92,6 +92,7 @@ export function useWorkoutStore() {
   });
   const [isLoaded, setIsLoaded] = useState(false);
   const isInitialLoad = useRef(true);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
 
   // Load workouts on mount
   useEffect(() => {
@@ -234,6 +235,84 @@ export function useWorkoutStore() {
     }
   }, []);
 
+  // Selection management for Combine feature
+  const selectCard = useCallback((id: string) => {
+    setSelectedCardIds(prev => new Set([...prev, id]));
+  }, []);
+
+  const deselectCard = useCallback((id: string) => {
+    setSelectedCardIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedCardIds(new Set());
+  }, []);
+
+  const getSelectedCards = useCallback((): WorkoutEntry[] => {
+    const key = getDateKey(currentDate);
+    const workout = workoutsByDate.get(key);
+    if (!workout) return [];
+
+    return workout.entries
+      .filter(entry => selectedCardIds.has(entry.id))
+      .sort((a, b) => {
+        // Sort by timestamp to preserve chronological order
+        const timeA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+        const timeB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
+        return timeA.getTime() - timeB.getTime();
+      });
+  }, [currentDate, selectedCardIds]);
+
+  const combineSelectedCards = useCallback(async (combinedText: string) => {
+    const selectedEntries = getSelectedCards();
+    if (selectedEntries.length < 2) {
+      throw new Error('At least 2 cards must be selected to combine');
+    }
+
+    const key = getDateKey(currentDate);
+    const workout = workoutsByDate.get(key);
+    if (!workout) {
+      throw new Error('No workout found for current date');
+    }
+
+    // Get the earliest timestamp from selected entries for the new combined entry
+    const earliestTimestamp = selectedEntries.reduce((earliest, entry) => {
+      const entryTime = entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp);
+      const earliestTime = earliest instanceof Date ? earliest : new Date(earliest);
+      return entryTime.getTime() < earliestTime.getTime() ? entryTime : earliest;
+    }, selectedEntries[0].timestamp);
+
+    // Create new combined entry
+    const combinedEntry: WorkoutEntry = {
+      id: `${Date.now()}-${Math.random()}`,
+      text: combinedText,
+      title: combinedText,
+      timestamp: earliestTimestamp instanceof Date ? earliestTimestamp : new Date(earliestTimestamp),
+      date: new Date(currentDate),
+    };
+
+    // Delete original entries
+    const idsToDelete = new Set(selectedEntries.map(e => e.id));
+    workout.entries = workout.entries.filter(e => !idsToDelete.has(e.id));
+
+    // Add combined entry
+    workout.entries.push(combinedEntry);
+    workoutsByDate.set(key, workout);
+
+    // Clear selection
+    setSelectedCardIds(new Set());
+
+    // Trigger re-render and save
+    setCurrentDate(new Date(currentDate));
+    triggerSave();
+
+    return combinedEntry;
+  }, [currentDate, getSelectedCards, triggerSave]);
+
   return {
     currentDate,
     currentDayWorkout,
@@ -244,6 +323,13 @@ export function useWorkoutStore() {
     goToNextDay,
     goToPrevDay,
     goToDate,
+    // Selection and combine methods
+    selectedCardIds,
+    selectCard,
+    deselectCard,
+    clearSelection,
+    getSelectedCards,
+    combineSelectedCards,
   };
 }
 

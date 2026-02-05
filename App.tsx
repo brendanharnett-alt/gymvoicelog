@@ -20,6 +20,7 @@ import { Calendar } from './src/components/Calendar';
 import { MonthYearPicker } from './src/components/MonthYearPicker';
 import { WorkoutEntry } from './src/types/workout';
 import { startOfMonth, normalizeDate, getDateLabel } from './src/utils/dateUtils';
+import { combineCards } from './src/utils/combineCards';
 
 type CalendarView = 'days' | 'months';
 
@@ -34,6 +35,12 @@ export default function App() {
     goToPrevDay,
     goToDate,
     reorderEntries,
+    selectedCardIds,
+    selectCard,
+    deselectCard,
+    clearSelection,
+    getSelectedCards,
+    combineSelectedCards,
   } = useWorkoutStore();
 
   const [editingEntry, setEditingEntry] = useState<WorkoutEntry | null>(null);
@@ -43,6 +50,7 @@ export default function App() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(startOfMonth(currentDate));
   const [isRecordingTargetModalOpen, setIsRecordingTargetModalOpen] = useState(false);
   const [isSummaryInputFocused, setIsSummaryInputFocused] = useState(false);
+  const [isCombining, setIsCombining] = useState(false);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -194,6 +202,39 @@ export default function App() {
     }
   };
 
+  const handleCombine = async () => {
+    const selectedEntries = getSelectedCards();
+    if (selectedEntries.length < 2) {
+      console.warn('Need at least 2 cards to combine');
+      return;
+    }
+
+    setIsCombining(true);
+    try {
+      // Extract texts in chronological order (title or text fallback)
+      const texts = selectedEntries.map(entry => entry.title || entry.text || '').filter(text => text.trim().length > 0);
+      
+      if (texts.length < 2) {
+        throw new Error('At least 2 non-empty texts required to combine');
+      }
+
+      // Call AI to format combined text
+      const combinedText = await combineCards(texts);
+
+      // Create new combined entry and delete originals
+      await combineSelectedCards(combinedText);
+
+      // Clear selection
+      clearSelection();
+    } catch (err) {
+      console.error('Failed to combine cards:', err);
+      // Show error to user (in production, use a toast library)
+      alert(`Failed to combine cards: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsCombining(false);
+    }
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
@@ -218,6 +259,11 @@ export default function App() {
             onUpdateEntry={updateEntry}
             onDeleteEntry={handleDeleteEntry}
             onSummaryFocusChange={setIsSummaryInputFocused}
+            selectedCardIds={selectedCardIds}
+            onSelectCard={selectCard}
+            onDeselectCard={deselectCard}
+            onCombine={handleCombine}
+            isCombining={isCombining}
           />
         </View>
       </SwipeContainer>

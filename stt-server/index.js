@@ -85,6 +85,7 @@ function normalizeTranscript(transcript) {
 }
 
 app.use(cors());
+app.use(express.json());
 
 app.get("/", (_req, res) => {
   res.send("STT server running");
@@ -305,6 +306,136 @@ If extraction is ambiguous:
 
     res.status(500).json({
       error: "Transcription failed",
+      details: err?.message ?? String(err),
+    });
+  }
+});
+
+// ============================================================================
+// COMBINE CARDS ENDPOINT - Separate from /transcribe
+// This endpoint formats multiple workout text entries into a single combined entry
+// It does NOT interpret or parse - it only formats existing text
+// ============================================================================
+app.post("/combine", async (req, res) => {
+  console.log("---- /combine called ----");
+
+  const { texts } = req.body;
+
+  if (!texts || !Array.isArray(texts) || texts.length === 0) {
+    return res.status(400).json({ error: "texts array is required" });
+  }
+
+  if (texts.length < 2) {
+    return res.status(400).json({ error: "At least 2 texts required to combine" });
+  }
+
+  try {
+    // Filter out empty texts
+    const nonEmptyTexts = texts.filter(text => text && typeof text === 'string' && text.trim().length > 0);
+    
+    if (nonEmptyTexts.length < 2) {
+      return res.status(400).json({ error: "At least 2 non-empty texts required" });
+    }
+
+    // Combine prompt - FORMATTER ONLY, not interpreter
+    const combineSystemPrompt = `You are a workout text formatter. Your job is to combine multiple workout text entries into a single, well-formatted workout summary.
+
+RULES:
+- You are a FORMATTER, not an interpreter
+- Do NOT invent exercises, sets, reps, or weights
+- Do NOT remove or reorder information
+- Preserve the original order of exercises and sets as they appear in the input texts
+- If an exercise name is present, place it on the first line
+- Normalize set phrasing into "WEIGHT x REPS" format when clearly expressed (e.g., "100 pounds for 10 reps" → "100 x 10", "10 reps of 100" → "100 x 10")
+- If text cannot be confidently normalized into a set, include it verbatim as its own line
+- Output plain text only, no explanations or commentary
+
+FORMATTING RULES:
+- Exercise name on its own line
+- Each set on a separate line: <weight> x <reps>
+- Multiple exercises separated by blank line
+- Preserve original order from input texts
+
+EXAMPLES:
+
+Input texts:
+["Bench press 225 for 5", "Squats 315 for 8"]
+
+Output:
+Bench press
+225 x 5
+
+Squats
+315 x 8
+
+Input texts:
+["100 pounds for 10 reps", "another set of 100 for 10"]
+
+Output:
+100 x 10
+100 x 10
+
+Input texts:
+["Bench press", "225 x 5", "225 x 5"]
+
+Output:
+Bench press
+225 x 5
+225 x 5
+
+Input texts:
+["Some freeform text about my workout", "Bench press 225 x 5"]
+
+Output:
+Some freeform text about my workout
+
+Bench press
+225 x 5
+
+DO NOT:
+- Invent exercises, sets, reps, or weights
+- Remove information that exists in source texts
+- Reorder information beyond normalization
+- Interpret ambiguous data
+- Make assumptions about missing information
+- Add explanations or commentary
+
+Input texts will be provided in order. Format them into a single workout summary following the rules above.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: combineSystemPrompt,
+        },
+        {
+          role: "user",
+          content: `Combine these workout texts in order:\n\n${nonEmptyTexts.map((text, idx) => `Text ${idx + 1}:\n${text}`).join('\n\n')}`,
+        },
+      ],
+    });
+
+    const combinedText = completion.choices[0]?.message?.content?.trim() || '';
+
+    if (!combinedText) {
+      console.error("Combine AI returned empty response");
+      return res.status(500).json({ error: "AI formatting returned empty result" });
+    }
+
+    console.log("Combine SUCCESS:", {
+      inputCount: nonEmptyTexts.length,
+      outputLength: combinedText.length,
+    });
+
+    res.json({
+      combinedText,
+    });
+  } catch (err) {
+    console.error("COMBINE ERROR:", err);
+    res.status(500).json({
+      error: "Combine failed",
       details: err?.message ?? String(err),
     });
   }

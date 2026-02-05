@@ -17,6 +17,10 @@ interface WorkoutCardProps {
   onDelete?: () => void;
   autoFocus?: boolean; // Auto-focus title when true
   onSummaryFocusChange?: (isFocused: boolean) => void;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onDeselect?: () => void;
+  showSelectionCheckbox?: boolean;
 }
 
 type CardState = 'collapsed' | 'expanded';
@@ -53,6 +57,10 @@ export function WorkoutCard({
   onDelete,
   autoFocus = false,
   onSummaryFocusChange,
+  isSelected = false,
+  onSelect,
+  onDeselect,
+  showSelectionCheckbox = false,
 }: WorkoutCardProps) {
   const [cardState, setCardState] = useState<CardState>('collapsed');
   // Get initial summary text from entry (title or text, matching getExerciseName logic)
@@ -129,6 +137,15 @@ export function WorkoutCard({
     }
   };
 
+  // Handle selection toggle
+  const handleSelectionToggle = () => {
+    if (isSelected && onDeselect) {
+      onDeselect();
+    } else if (!isSelected && onSelect) {
+      onSelect();
+    }
+  };
+
   const exerciseName = getExerciseName(entry);
   const setDetails = getSetDetails(entry);
   // Ensure timestamp is a Date object
@@ -140,9 +157,23 @@ export function WorkoutCard({
   // Collapsed view
   if (cardState === 'collapsed') {
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, isSelected && styles.cardSelected]}>
         <View style={styles.collapsedContent}>
           <View style={styles.collapsedHeader}>
+            {/* Selection checkbox - only show when in selection mode */}
+            {showSelectionCheckbox && (onSelect || onDeselect) && (
+              <TouchableOpacity
+                onPress={handleSelectionToggle}
+                style={styles.selectionCheckbox}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={isSelected ? "checkbox" : "checkbox-outline"}
+                  size={24}
+                  color={isSelected ? "#FF4444" : "#888"}
+                />
+              </TouchableOpacity>
+            )}
             <View style={styles.exerciseNameContainer}>
               <Text style={styles.exerciseName}>
                 {exerciseName}
@@ -247,6 +278,11 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A2A',
     marginBottom: 12,
   },
+  cardSelected: {
+    borderColor: '#FF4444',
+    borderWidth: 2,
+    backgroundColor: '#1A0A0A',
+  },
   expandedCard: {
     marginBottom: 12,
   },
@@ -258,6 +294,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 6,
+  },
+  selectionCheckbox: {
+    marginRight: 12,
+    padding: 4,
   },
   exerciseNameContainer: {
     flex: 1,
