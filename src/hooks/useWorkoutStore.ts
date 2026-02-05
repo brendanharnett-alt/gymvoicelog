@@ -130,10 +130,14 @@ export function useWorkoutStore() {
     return newWorkout;
   }, [currentDate]);
 
-  const addEntry = useCallback((text: string = '') => {
-    const key = getDateKey(currentDate);
+  const addEntry = useCallback((text: string = '', targetDate?: Date) => {
+    // If targetDate is provided, use it (for recordings, explicitly pass today)
+    // Otherwise, use currentDate (viewed date) for manual entries
+    // This separates recordingTargetDate from viewedDate
+    const entryDate = targetDate ? normalizeDate(targetDate) : normalizeDate(currentDate);
+    const key = getDateKey(entryDate);
     const workout = workoutsByDate.get(key) || {
-      date: new Date(currentDate),
+      date: new Date(entryDate),
       entries: [],
     };
     
@@ -141,7 +145,7 @@ export function useWorkoutStore() {
       id: `${Date.now()}-${Math.random()}`,
       text,
       timestamp: new Date(),
-      date: new Date(currentDate),
+      date: new Date(entryDate),
     };
     
     workout.entries.push(newEntry);

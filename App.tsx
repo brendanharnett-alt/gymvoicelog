@@ -44,8 +44,14 @@ export default function App() {
     // Use summary if available, otherwise fall back to transcript
     const displayText = result.summary || result.transcript;
     
+    // Always use today's date for recordings, regardless of currently viewed date
+    // Get today's date at the moment recording finishes (system date/time)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     // Create entry with summary as title/description and transcript as rawTranscription
-    const newEntry = addEntry(displayText);
+    // Explicitly pass today's date to ensure recording goes to today, not viewed date
+    const newEntry = addEntry(displayText, today);
     
     // Update with structured data
     if (result.summary) {
