@@ -16,6 +16,7 @@ interface WorkoutCardProps {
   onUpdate: (updates: Partial<WorkoutEntry>) => void;
   onDelete?: () => void;
   autoFocus?: boolean; // Auto-focus title when true
+  onSummaryFocusChange?: (isFocused: boolean) => void;
 }
 
 type CardState = 'collapsed' | 'expanded';
@@ -51,6 +52,7 @@ export function WorkoutCard({
   onUpdate,
   onDelete,
   autoFocus = false,
+  onSummaryFocusChange,
 }: WorkoutCardProps) {
   const [cardState, setCardState] = useState<CardState>('collapsed');
   // Get initial summary text from entry (title or text, matching getExerciseName logic)
@@ -107,6 +109,24 @@ export function WorkoutCard({
     // Save the summary text as title when collapsing
     onUpdate({ title: summaryText.trim() || undefined });
     setCardState('collapsed');
+    // Reset focus state when collapsing
+    if (onSummaryFocusChange) {
+      onSummaryFocusChange(false);
+    }
+  };
+
+  // Handle summary input focus
+  const handleSummaryFocus = () => {
+    if (onSummaryFocusChange) {
+      onSummaryFocusChange(true);
+    }
+  };
+
+  // Handle summary input blur
+  const handleSummaryBlur = () => {
+    if (onSummaryFocusChange) {
+      onSummaryFocusChange(false);
+    }
   };
 
   const exerciseName = getExerciseName(entry);
@@ -190,6 +210,8 @@ export function WorkoutCard({
             multiline={true}
             textAlignVertical="top"
             scrollEnabled={true}
+            onFocus={handleSummaryFocus}
+            onBlur={handleSummaryBlur}
           />
         </View>
 
@@ -304,7 +326,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   scrollableTextArea: {
-    height: 200,
+    height: 150,
     borderWidth: 1,
     borderColor: '#2A2A2A',
     borderRadius: 8,
@@ -320,7 +342,7 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A2A',
   },
   editableTextArea: {
-    height: 200,
+    height: 150,
     textAlignVertical: 'top',
   },
   readOnlyTextArea: {
@@ -328,7 +350,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888888',
     fontStyle: 'italic',
-    minHeight: 200,
+    minHeight: 150,
   },
   placeholderText: {
     color: '#666666',

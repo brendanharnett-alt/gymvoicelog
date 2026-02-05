@@ -42,6 +42,7 @@ export default function App() {
   const [calendarView, setCalendarView] = useState<CalendarView>('days');
   const [calendarMonth, setCalendarMonth] = useState<Date>(startOfMonth(currentDate));
   const [isRecordingTargetModalOpen, setIsRecordingTargetModalOpen] = useState(false);
+  const [isSummaryInputFocused, setIsSummaryInputFocused] = useState(false);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -210,33 +211,36 @@ export default function App() {
 
       {/* Workout List with Swipe */}
       <SwipeContainer onSwipeLeft={goToNextDay} onSwipeRight={goToPrevDay}>
-        <View style={styles.content}>
+        <View style={[styles.content, isSummaryInputFocused && styles.contentNoPadding]}>
           <WorkoutCardList
             dayWorkout={currentDayWorkout}
             onAddEntry={() => addEntry('')}
             onUpdateEntry={updateEntry}
             onDeleteEntry={handleDeleteEntry}
+            onSummaryFocusChange={setIsSummaryInputFocused}
           />
         </View>
       </SwipeContainer>
 
-      {/* Recording Button - Fixed at bottom */}
-      <View style={styles.recordButtonContainer}>
-        {/* Recording target chip - only show when viewing non-Today date */}
-        {!isViewingToday && (
-          <TouchableOpacity
-            style={styles.recordingTargetChip}
-            onPress={() => setIsRecordingTargetModalOpen(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.recordingTargetText}>
-              Recording to: {recordingTargetLabel}
-            </Text>
-            <Text style={styles.recordingTargetChange}>Change</Text>
-          </TouchableOpacity>
-        )}
-        <RecordButton onRecordingComplete={handleRecordingComplete} />
-      </View>
+      {/* Recording Button - Fixed at bottom (hidden when editing summary) */}
+      {!isSummaryInputFocused && (
+        <View style={styles.recordButtonContainer}>
+          {/* Recording target chip - only show when viewing non-Today date */}
+          {!isViewingToday && (
+            <TouchableOpacity
+              style={styles.recordingTargetChip}
+              onPress={() => setIsRecordingTargetModalOpen(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.recordingTargetText}>
+                Recording to: {recordingTargetLabel}
+              </Text>
+              <Text style={styles.recordingTargetChange}>Change</Text>
+            </TouchableOpacity>
+          )}
+          <RecordButton onRecordingComplete={handleRecordingComplete} />
+        </View>
+      )}
 
       {/* Calendar Modal */}
       <Modal
@@ -340,6 +344,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingBottom: 160, // Space for record button
+  },
+  contentNoPadding: {
+    paddingBottom: 0, // Remove padding when record button is hidden
   },
   recordButtonContainer: {
     position: 'absolute',

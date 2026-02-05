@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ interface WorkoutCardListProps {
   onAddEntry: () => WorkoutEntry; // Returns the new entry
   onUpdateEntry: (id: string, updates: Partial<WorkoutEntry>) => void;
   onDeleteEntry: (id: string) => void;
+  onSummaryFocusChange?: (isFocused: boolean) => void;
 }
 
 export function WorkoutCardList({
@@ -22,8 +23,11 @@ export function WorkoutCardList({
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
+  onSummaryFocusChange,
 }: WorkoutCardListProps) {
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
+  // Track focus count to handle multiple cards (though typically only one is expanded)
+  const focusCountRef = useRef(0);
 
   // Sort entries: newest → oldest (by timestamp)
   const sortedEntries = [...dayWorkout.entries].sort((a, b) => {
@@ -51,6 +55,19 @@ export function WorkoutCardList({
   const handleDelete = useCallback((id: string) => {
     onDeleteEntry(id);
   }, [onDeleteEntry]);
+
+  // Handle summary focus change from any card
+  const handleSummaryFocusChange = useCallback((isFocused: boolean) => {
+    if (isFocused) {
+      focusCountRef.current += 1;
+    } else {
+      focusCountRef.current = Math.max(0, focusCountRef.current - 1);
+    }
+    // Notify parent if any card has focus
+    if (onSummaryFocusChange) {
+      onSummaryFocusChange(focusCountRef.current > 0);
+    }
+  }, [onSummaryFocusChange]);
 
   return (
     <View style={styles.container}>
@@ -87,6 +104,7 @@ export function WorkoutCardList({
               onUpdate={(updates) => handleUpdate(entry.id, updates)}
               onDelete={() => handleDelete(entry.id)}
               autoFocus={newlyCreatedId === entry.id}
+              onSummaryFocusChange={handleSummaryFocusChange}
             />
           ))
         )}
