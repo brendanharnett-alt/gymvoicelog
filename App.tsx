@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Modal,
   TouchableOpacity,
+  Text,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useWorkoutStore } from './src/hooks/useWorkoutStore';
 import { DateHeader } from './src/components/DateHeader';
 import { SwipeContainer } from './src/components/SwipeContainer';
@@ -17,7 +19,7 @@ import { EditWorkoutDialog } from './src/components/EditWorkoutDialog';
 import { Calendar } from './src/components/Calendar';
 import { MonthYearPicker } from './src/components/MonthYearPicker';
 import { WorkoutEntry } from './src/types/workout';
-import { startOfMonth } from './src/utils/dateUtils';
+import { startOfMonth, normalizeDate, getDateLabel } from './src/utils/dateUtils';
 
 type CalendarView = 'days' | 'months';
 
@@ -39,19 +41,73 @@ export default function App() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarView, setCalendarView] = useState<CalendarView>('days');
   const [calendarMonth, setCalendarMonth] = useState<Date>(startOfMonth(currentDate));
+  const [isRecordingTargetModalOpen, setIsRecordingTargetModalOpen] = useState(false);
+  
+  // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
+  const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
+    const today = new Date();
+    return normalizeDate(today);
+  });
+  
+  // Check if viewing a non-Today date
+  const today = useMemo(() => normalizeDate(new Date()), []);
+  const isViewingToday = useMemo(() => {
+    const currentNormalized = normalizeDate(currentDate);
+    return currentNormalized.getTime() === today.getTime();
+  }, [currentDate, today]);
+  
+  // Get label for recording target date
+  const recordingTargetLabel = useMemo(() => {
+    return getDateLabel(recordingTargetDate, today);
+  }, [recordingTargetDate, today]);
+
+  // Track previous currentDate to detect navigation away from a page
+  const prevCurrentDateRef = useRef<Date>(currentDate);
+
+  // Reset recordingTargetDate to Today when user navigates away from current page
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:68',message:'useEffect triggered',data:{prevDateRef:prevCurrentDateRef.current?.getTime(),currentDate:currentDate?.getTime(),recordingTargetDate:recordingTargetDate?.getTime(),today:today?.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+    // #endregion
+    const prevDate = normalizeDate(prevCurrentDateRef.current);
+    const currentDateNormalized = normalizeDate(currentDate);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:72',message:'Date comparison',data:{prevDateNormalized:prevDate.getTime(),currentDateNormalized:currentDateNormalized.getTime(),datesMatch:prevDate.getTime()===currentDateNormalized.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'})}).catch(()=>{});
+    // #endregion
+    
+    // If the date has changed (user navigated to a different page), reset to Today
+    if (prevDate.getTime() !== currentDateNormalized.getTime()) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:75',message:'RESETTING recordingTargetDate to Today',data:{prevDate:prevDate.getTime(),currentDate:currentDateNormalized.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'})}).catch(()=>{});
+      // #endregion
+      setRecordingTargetDate(today);
+    }
+    
+    // Update ref for next comparison
+    prevCurrentDateRef.current = currentDate;
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:79',message:'Updated prevCurrentDateRef',data:{newRefValue:prevCurrentDateRef.current?.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+  }, [currentDate, today]);
 
   const handleRecordingComplete = (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:94',message:'handleRecordingComplete called',data:{currentDate:currentDate?.getTime(),recordingTargetDate:recordingTargetDate?.getTime(),isViewingToday},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
     // Use summary if available, otherwise fall back to transcript
     const displayText = result.summary || result.transcript;
     
-    // Always use today's date for recordings, regardless of currently viewed date
-    // Get today's date at the moment recording finishes (system date/time)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use recordingTargetDate (defaults to Today, can be overridden to viewed date)
+    // Normalize to ensure consistent date handling
+    const targetDate = normalizeDate(recordingTargetDate);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:100',message:'Before addEntry',data:{targetDate:targetDate.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
     
     // Create entry with summary as title/description and transcript as rawTranscription
-    // Explicitly pass today's date to ensure recording goes to today, not viewed date
-    const newEntry = addEntry(displayText, today);
+    const newEntry = addEntry(displayText, targetDate);
     
     // Update with structured data
     if (result.summary) {
@@ -66,8 +122,30 @@ export default function App() {
       });
     }
     
+    // REMOVED: Reset recordingTargetDate back to Today after recording is saved
+    // The target should persist on the current page until user navigates away
+    // Reset only happens in useEffect when currentDate changes (navigation)
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:120',message:'After recording save - NOT resetting target',data:{recordingTargetDateStill:recordingTargetDate?.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+    
     // In production, you'd use a toast library like react-native-toast-message
     console.log('Workout logged:', { summary: result.summary, transcript: result.transcript });
+  };
+  
+  const handleRecordingTargetChange = (selectedDate: Date) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:113',message:'handleRecordingTargetChange called',data:{selectedDate:selectedDate?.getTime(),currentDate:currentDate?.getTime(),currentRecordingTarget:recordingTargetDate?.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    setRecordingTargetDate(normalizeDate(selectedDate));
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:115',message:'After setRecordingTargetDate, before modal close',data:{newTarget:normalizeDate(selectedDate).getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    setIsRecordingTargetModalOpen(false);
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:116',message:'After modal close',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
   };
 
   const handleDeleteEntry = (id: string) => {
@@ -144,6 +222,19 @@ export default function App() {
 
       {/* Recording Button - Fixed at bottom */}
       <View style={styles.recordButtonContainer}>
+        {/* Recording target chip - only show when viewing non-Today date */}
+        {!isViewingToday && (
+          <TouchableOpacity
+            style={styles.recordingTargetChip}
+            onPress={() => setIsRecordingTargetModalOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.recordingTargetText}>
+              Recording to: {recordingTargetLabel}
+            </Text>
+            <Text style={styles.recordingTargetChange}>Change</Text>
+          </TouchableOpacity>
+        )}
         <RecordButton onRecordingComplete={handleRecordingComplete} />
       </View>
 
@@ -190,6 +281,48 @@ export default function App() {
         onOpenChange={setIsEditDialogOpen}
         onSave={handleSaveEntry}
       />
+
+      {/* Recording Target Selection Modal */}
+      <Modal
+        visible={isRecordingTargetModalOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsRecordingTargetModalOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsRecordingTargetModalOpen(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.recordingTargetModal}
+          >
+            <Text style={styles.recordingTargetModalTitle}>Recording Target</Text>
+            <TouchableOpacity
+              style={styles.recordingTargetOption}
+              onPress={() => handleRecordingTargetChange(today)}
+            >
+              <Text style={styles.recordingTargetOptionText}>Today</Text>
+              {normalizeDate(recordingTargetDate).getTime() === today.getTime() && (
+                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.recordingTargetOption}
+              onPress={() => handleRecordingTargetChange(currentDate)}
+            >
+              <Text style={styles.recordingTargetOptionText}>
+                {getDateLabel(currentDate, today)}
+              </Text>
+              {normalizeDate(recordingTargetDate).getTime() === normalizeDate(currentDate).getTime() && (
+                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -218,6 +351,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
+  recordingTargetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    gap: 8,
+  },
+  recordingTargetText: {
+    color: '#CCCCCC',
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  recordingTargetChange: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -231,5 +386,35 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A2A',
     maxWidth: '90%',
     maxHeight: '80%',
+  },
+  recordingTargetModal: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    padding: 20,
+    minWidth: 280,
+  },
+  recordingTargetModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  recordingTargetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#0A0A0A',
+    marginBottom: 8,
+  },
+  recordingTargetOptionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '400',
   },
 });
