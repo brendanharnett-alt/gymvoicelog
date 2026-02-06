@@ -658,7 +658,7 @@ Input texts will be provided in order. Format them into a single workout summary
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`STT server running on port ${PORT}`);
+  console.log(`STT server running - test dploy on port ${PORT}`);
   console.log(`Available routes: POST /transcribe, POST /combine`);
   // #region agent log
   try {
