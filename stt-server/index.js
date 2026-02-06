@@ -318,22 +318,131 @@ If extraction is ambiguous:
 // ============================================================================
 app.post("/combine", async (req, res) => {
   console.log("---- /combine called ----");
+  // #region agent log
+  const logPath = 'c:\\gymvoicelog\\.cursor\\debug.log';
+  try {
+    const logEntry = JSON.stringify({
+      location: 'index.js:319',
+      message: '/combine endpoint called',
+      data: {
+        hasBody: !!req.body,
+        bodyKeys: req.body ? Object.keys(req.body) : [],
+        contentType: req.headers['content-type'],
+        textsType: typeof req.body?.texts,
+        textsIsArray: Array.isArray(req.body?.texts),
+        textsLength: Array.isArray(req.body?.texts) ? req.body.texts.length : null,
+      },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'A,B,C,D,E,F'
+    }) + '\n';
+    fs.appendFileSync(logPath, logEntry);
+  } catch (logErr) {}
+  // #endregion
 
   const { texts } = req.body;
+  // #region agent log
+  try {
+    const logEntry = JSON.stringify({
+      location: 'index.js:340',
+      message: 'Extracted texts from body',
+      data: {
+        textsType: typeof texts,
+        textsIsArray: Array.isArray(texts),
+        textsLength: Array.isArray(texts) ? texts.length : null,
+        textsPreview: Array.isArray(texts) ? texts.slice(0, 3).map(t => typeof t === 'string' ? t.substring(0, 50) : String(t)) : null,
+      },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'A,B,C,D,E,F'
+    }) + '\n';
+    fs.appendFileSync(logPath, logEntry);
+  } catch (logErr) {}
+  // #endregion
 
   if (!texts || !Array.isArray(texts) || texts.length === 0) {
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:353',
+        message: 'Validation failed - texts missing or invalid',
+        data: {
+          hasTexts: !!texts,
+          textsIsArray: Array.isArray(texts),
+          textsLength: Array.isArray(texts) ? texts.length : null,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
     return res.status(400).json({ error: "texts array is required" });
   }
 
   if (texts.length < 2) {
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:370',
+        message: 'Validation failed - not enough texts',
+        data: {
+          textsLength: texts.length,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
     return res.status(400).json({ error: "At least 2 texts required to combine" });
   }
 
   try {
     // Filter out empty texts
     const nonEmptyTexts = texts.filter(text => text && typeof text === 'string' && text.trim().length > 0);
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:334',
+        message: 'Filtered non-empty texts',
+        data: {
+          originalCount: texts.length,
+          nonEmptyCount: nonEmptyTexts.length,
+          nonEmptyTextsPreview: nonEmptyTexts.slice(0, 3).map(t => t.substring(0, 50)),
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
     
     if (nonEmptyTexts.length < 2) {
+      // #region agent log
+      try {
+        const logEntry = JSON.stringify({
+          location: 'index.js:345',
+          message: 'Validation failed - not enough non-empty texts',
+          data: {
+            nonEmptyCount: nonEmptyTexts.length,
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'A'
+        }) + '\n';
+        fs.appendFileSync(logPath, logEntry);
+      } catch (logErr) {}
+      // #endregion
       return res.status(400).json({ error: "At least 2 non-empty texts required" });
     }
 
@@ -402,6 +511,24 @@ DO NOT:
 
 Input texts will be provided in order. Format them into a single workout summary following the rules above.`;
 
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:405',
+        message: 'Before OpenAI API call',
+        data: {
+          nonEmptyTextsCount: nonEmptyTexts.length,
+          promptLength: combineSystemPrompt.length,
+          userContentLength: `Combine these workout texts in order:\n\n${nonEmptyTexts.map((text, idx) => `Text ${idx + 1}:\n${text}`).join('\n\n')}`.length,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'B,C,D,E,F'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0,
@@ -416,10 +543,63 @@ Input texts will be provided in order. Format them into a single workout summary
         },
       ],
     });
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:420',
+        message: 'After OpenAI API call',
+        data: {
+          hasCompletion: !!completion,
+          hasChoices: !!completion?.choices,
+          choicesLength: completion?.choices?.length || 0,
+          hasMessage: !!completion?.choices?.[0]?.message,
+          hasContent: !!completion?.choices?.[0]?.message?.content,
+          contentLength: completion?.choices?.[0]?.message?.content?.length || 0,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'E'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
 
     const combinedText = completion.choices[0]?.message?.content?.trim() || '';
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:437',
+        message: 'Extracted combinedText',
+        data: {
+          combinedTextLength: combinedText.length,
+          combinedTextPreview: combinedText.substring(0, 100),
+          isEmpty: !combinedText,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'E'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
 
     if (!combinedText) {
+      // #region agent log
+      try {
+        const logEntry = JSON.stringify({
+          location: 'index.js:451',
+          message: 'AI returned empty response',
+          data: {},
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'E'
+        }) + '\n';
+        fs.appendFileSync(logPath, logEntry);
+      } catch (logErr) {}
+      // #endregion
       console.error("Combine AI returned empty response");
       return res.status(500).json({ error: "AI formatting returned empty result" });
     }
@@ -428,11 +608,46 @@ Input texts will be provided in order. Format them into a single workout summary
       inputCount: nonEmptyTexts.length,
       outputLength: combinedText.length,
     });
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:465',
+        message: 'Sending success response',
+        data: {
+          inputCount: nonEmptyTexts.length,
+          outputLength: combinedText.length,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'E'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
 
     res.json({
       combinedText,
     });
   } catch (err) {
+    // #region agent log
+    try {
+      const logEntry = JSON.stringify({
+        location: 'index.js:480',
+        message: 'COMBINE ERROR catch block',
+        data: {
+          errorType: err?.constructor?.name,
+          errorMessage: err?.message || String(err),
+          errorStack: err?.stack?.substring(0, 300),
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A,B,C,D,E,F'
+      }) + '\n';
+      fs.appendFileSync(logPath, logEntry);
+    } catch (logErr) {}
+    // #endregion
     console.error("COMBINE ERROR:", err);
     res.status(500).json({
       error: "Combine failed",
@@ -444,4 +659,23 @@ Input texts will be provided in order. Format them into a single workout summary
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`STT server running on port ${PORT}`);
+  console.log(`Available routes: POST /transcribe, POST /combine`);
+  // #region agent log
+  try {
+    const logPath = 'c:\\gymvoicelog\\.cursor\\debug.log';
+    const logEntry = JSON.stringify({
+      location: 'index.js:660',
+      message: 'Server started - routes registered',
+      data: {
+        port: PORT,
+        routes: ['POST /transcribe', 'POST /combine'],
+      },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      runId: 'run1',
+      hypothesisId: 'F'
+    }) + '\n';
+    fs.appendFileSync(logPath, logEntry);
+  } catch (logErr) {}
+  // #endregion
 });

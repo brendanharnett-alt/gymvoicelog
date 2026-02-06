@@ -203,8 +203,17 @@ export default function App() {
   };
 
   const handleCombine = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:205',message:'handleCombine called',data:{selectedCardIdsSize:selectedCardIds.size},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
+    // #endregion
     const selectedEntries = getSelectedCards();
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:208',message:'Got selected entries',data:{selectedEntriesCount:selectedEntries.length,entryIds:selectedEntries.map(e=>e.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (selectedEntries.length < 2) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:211',message:'Not enough entries to combine',data:{selectedEntriesCount:selectedEntries.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.warn('Need at least 2 cards to combine');
       return;
     }
@@ -213,20 +222,41 @@ export default function App() {
     try {
       // Extract texts in chronological order (title or text fallback)
       const texts = selectedEntries.map(entry => entry.title || entry.text || '').filter(text => text.trim().length > 0);
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:220',message:'Extracted texts for combine',data:{textsCount:texts.length,texts:texts.map(t=>t?.substring(0,50))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
+      // #endregion
       
       if (texts.length < 2) {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:223',message:'Not enough non-empty texts',data:{textsCount:texts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         throw new Error('At least 2 non-empty texts required to combine');
       }
 
       // Call AI to format combined text
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:229',message:'Calling combineCards',data:{textsCount:texts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
+      // #endregion
       const combinedText = await combineCards(texts);
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:231',message:'combineCards returned successfully',data:{combinedTextLength:combinedText?.length,combinedTextPreview:combinedText?.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
 
       // Create new combined entry and delete originals
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:235',message:'Calling combineSelectedCards',data:{combinedTextLength:combinedText?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       await combineSelectedCards(combinedText);
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:237',message:'combineSelectedCards completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       // Clear selection
       clearSelection();
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:242',message:'handleCombine catch block',data:{errorType:err?.constructor?.name,errorMessage:err instanceof Error ? err.message : String(err),errorStack:err instanceof Error ? err.stack?.substring(0,300) : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
+      // #endregion
       console.error('Failed to combine cards:', err);
       // Show error to user (in production, use a toast library)
       alert(`Failed to combine cards: ${err instanceof Error ? err.message : 'Unknown error'}`);
