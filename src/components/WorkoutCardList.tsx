@@ -22,6 +22,8 @@ interface WorkoutCardListProps {
   onDeselectCard?: (id: string) => void;
   onCombine?: () => void;
   isCombining?: boolean;
+  combineMode?: boolean;
+  onCombineModeChange?: (enabled: boolean) => void;
 }
 
 export function WorkoutCardList({
@@ -35,14 +37,15 @@ export function WorkoutCardList({
   onDeselectCard,
   onCombine,
   isCombining = false,
+  combineMode = false,
+  onCombineModeChange,
 }: WorkoutCardListProps) {
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   // Track focus count to handle multiple cards (though typically only one is expanded)
   const focusCountRef = useRef(0);
 
   const selectedCount = selectedCardIds.size;
-  const showCombineButton = selectedCount >= 2 && onCombine;
+  const canCombine = selectedCount >= 2 && onCombine;
 
   // Sort entries: newest → oldest (by timestamp)
   const sortedEntries = [...dayWorkout.entries].sort((a, b) => {
@@ -84,61 +87,76 @@ export function WorkoutCardList({
     }
   }, [onSummaryFocusChange]);
 
-  // Handle long press to enter selection mode
-  const handleCardLongPress = useCallback((entryId: string) => {
-    setIsSelectionMode(true);
-    if (onSelectCard) {
-      onSelectCard(entryId); // Auto-select the long-pressed card
+  // Handle entering combine mode
+  const handleEnterCombineMode = useCallback(() => {
+    if (onCombineModeChange) {
+      onCombineModeChange(true);
     }
-  }, [onSelectCard]);
+  }, [onCombineModeChange]);
 
-  // Handle exiting selection mode
-  const handleExitSelectionMode = useCallback(() => {
-    setIsSelectionMode(false);
+  // Handle exiting combine mode
+  const handleExitCombineMode = useCallback(() => {
+    if (onCombineModeChange) {
+      onCombineModeChange(false);
+    }
+    // Clear all selections
     if (onDeselectCard) {
-      // Clear all selections
       selectedCardIds.forEach(id => onDeselectCard(id));
     }
-  }, [selectedCardIds, onDeselectCard]);
+  }, [onCombineModeChange, onDeselectCard, selectedCardIds]);
 
   return (
     <View style={styles.container}>
-      {/* Cancel selection button - shown when in selection mode */}
-      {isSelectionMode && (
-        <TouchableOpacity
-          onPress={handleExitSelectionMode}
-          style={styles.cancelSelectionButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="close" size={20} color="#FFFFFF" />
-          <Text style={styles.cancelSelectionButtonText}>Cancel Selection</Text>
-        </TouchableOpacity>
+      {/* Top bar - shown when in combine mode */}
+      {combineMode && (
+        <View style={styles.combineTopBar}>
+          <TouchableOpacity
+            onPress={handleExitCombineMode}
+            style={styles.combineCancelButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={20} color="#FFFFFF" />
+            <Text style={styles.combineCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.combineTitle}>Combine cards</Text>
+          {canCombine ? (
+            <TouchableOpacity
+              onPress={onCombine}
+              style={[styles.combineActionButton, isCombining && styles.combineActionButtonDisabled]}
+              activeOpacity={0.7}
+              disabled={isCombining}
+            >
+              <Text style={styles.combineActionText}>
+                {isCombining ? 'Combining...' : 'Combine'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.combineActionButtonPlaceholder} />
+          )}
+        </View>
       )}
 
-      {/* Combine button - shown when 2+ cards selected */}
-      {showCombineButton && (
-        <TouchableOpacity
-          onPress={onCombine}
-          style={[styles.combineButton, isCombining && styles.combineButtonDisabled]}
-          activeOpacity={0.7}
-          disabled={isCombining}
-        >
-          <Ionicons name="layers-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.combineButtonText}>
-            {isCombining ? 'Combining...' : `Combine ${selectedCount} Cards`}
-          </Text>
-        </TouchableOpacity>
+      {/* Action buttons - shown when NOT in combine mode */}
+      {!combineMode && (
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            onPress={handleAddCard}
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Add card</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleEnterCombineMode}
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="swap-horizontal-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Combine</Text>
+          </TouchableOpacity>
+        </View>
       )}
-
-      {/* + Add button */}
-      <TouchableOpacity
-        onPress={handleAddCard}
-        style={styles.addButton}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="add" size={20} color="#FFFFFF" />
-        <Text style={styles.addButtonText}>Add</Text>
-      </TouchableOpacity>
 
       {/* Card list */}
       <ScrollView
@@ -157,23 +175,19 @@ export function WorkoutCardList({
           </View>
         ) : (
           sortedEntries.map((entry) => (
-            <Pressable
+            <WorkoutCard
               key={entry.id}
-              onLongPress={() => handleCardLongPress(entry.id)}
-              delayLongPress={500}
-            >
-              <WorkoutCard
-                entry={entry}
-                onUpdate={(updates) => handleUpdate(entry.id, updates)}
-                onDelete={() => handleDelete(entry.id)}
-                autoFocus={newlyCreatedId === entry.id}
-                onSummaryFocusChange={handleSummaryFocusChange}
-                isSelected={selectedCardIds.has(entry.id)}
-                onSelect={isSelectionMode && onSelectCard ? () => onSelectCard(entry.id) : undefined}
-                onDeselect={isSelectionMode && onDeselectCard ? () => onDeselectCard(entry.id) : undefined}
-                showSelectionCheckbox={isSelectionMode}
-              />
-            </Pressable>
+              entry={entry}
+              onUpdate={(updates) => handleUpdate(entry.id, updates)}
+              onDelete={() => handleDelete(entry.id)}
+              autoFocus={newlyCreatedId === entry.id}
+              onSummaryFocusChange={handleSummaryFocusChange}
+              isSelected={selectedCardIds.has(entry.id)}
+              onSelect={combineMode && onSelectCard ? () => onSelectCard(entry.id) : undefined}
+              onDeselect={combineMode && onDeselectCard ? () => onDeselectCard(entry.id) : undefined}
+              showSelectionCheckbox={combineMode}
+              combineMode={combineMode}
+            />
           ))
         )}
       </ScrollView>
@@ -185,50 +199,59 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  cancelSelectionButton: {
+  combineTopBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#1A1A1A',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A2A2A',
   },
-  cancelSelectionButtonText: {
+  combineCancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  combineCancelText: {
     fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
   },
-  combineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FF4444',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#FF6666',
-    gap: 8,
+  combineTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+    textAlign: 'center',
   },
-  combineButtonDisabled: {
+  combineActionButton: {
+    backgroundColor: '#FF4444',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  combineActionButtonDisabled: {
     opacity: 0.6,
   },
-  combineButtonText: {
-    fontSize: 16,
+  combineActionButtonPlaceholder: {
+    width: 60,
+  },
+  combineActionText: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  addButton: {
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -236,14 +259,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#2A2A2A',
     gap: 8,
   },
-  addButtonText: {
+  actionButtonText: {
     fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',

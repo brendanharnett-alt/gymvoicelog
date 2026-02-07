@@ -51,6 +51,7 @@ export default function App() {
   const [isRecordingTargetModalOpen, setIsRecordingTargetModalOpen] = useState(false);
   const [isSummaryInputFocused, setIsSummaryInputFocused] = useState(false);
   const [isCombining, setIsCombining] = useState(false);
+  const [combineMode, setCombineMode] = useState(false);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -251,8 +252,9 @@ export default function App() {
       fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:237',message:'combineSelectedCards completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
 
-      // Clear selection
+      // Clear selection and exit combine mode
       clearSelection();
+      setCombineMode(false);
     } catch (err) {
       // #region agent log
       fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:242',message:'handleCombine catch block',data:{errorType:err?.constructor?.name,errorMessage:err instanceof Error ? err.message : String(err),errorStack:err instanceof Error ? err.stack?.substring(0,300) : undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
@@ -294,6 +296,8 @@ export default function App() {
             onDeselectCard={deselectCard}
             onCombine={handleCombine}
             isCombining={isCombining}
+            combineMode={combineMode}
+            onCombineModeChange={setCombineMode}
           />
         </View>
       </SwipeContainer>

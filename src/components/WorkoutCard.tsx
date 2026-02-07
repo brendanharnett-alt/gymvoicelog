@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Keyboard,
@@ -21,6 +22,7 @@ interface WorkoutCardProps {
   onSelect?: () => void;
   onDeselect?: () => void;
   showSelectionCheckbox?: boolean;
+  combineMode?: boolean;
 }
 
 type CardState = 'collapsed' | 'expanded';
@@ -61,6 +63,7 @@ export function WorkoutCard({
   onSelect,
   onDeselect,
   showSelectionCheckbox = false,
+  combineMode = false,
 }: WorkoutCardProps) {
   const [cardState, setCardState] = useState<CardState>('collapsed');
   // Get initial summary text from entry (title or text, matching getExerciseName logic)
@@ -146,6 +149,15 @@ export function WorkoutCard({
     }
   };
 
+  // Handle card press - in combine mode, toggle selection; otherwise, edit
+  const handleCardPress = () => {
+    if (combineMode) {
+      handleSelectionToggle();
+    } else {
+      handleEdit();
+    }
+  };
+
   const exerciseName = getExerciseName(entry);
   const setDetails = getSetDetails(entry);
   // Ensure timestamp is a Date object
@@ -156,12 +168,12 @@ export function WorkoutCard({
 
   // Collapsed view
   if (cardState === 'collapsed') {
-    return (
+    const cardContent = (
       <View style={[styles.card, isSelected && styles.cardSelected]}>
         <View style={styles.collapsedContent}>
           <View style={styles.collapsedHeader}>
-            {/* Selection checkbox - only show when in selection mode */}
-            {showSelectionCheckbox && (onSelect || onDeselect) && (
+            {/* Selection checkbox - only show when in combine mode */}
+            {showSelectionCheckbox && combineMode && (onSelect || onDeselect) && (
               <TouchableOpacity
                 onPress={handleSelectionToggle}
                 style={styles.selectionCheckbox}
@@ -179,22 +191,24 @@ export function WorkoutCard({
                 {exerciseName}
               </Text>
             </View>
-            <View style={styles.collapsedActions}>
-              <TouchableOpacity
-                onPress={handleEdit}
-                style={styles.actionButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="create-outline" size={18} color="#888" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleDelete}
-                style={styles.actionButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="trash-outline" size={18} color="#FF4444" />
-              </TouchableOpacity>
-            </View>
+            {!combineMode && (
+              <View style={styles.collapsedActions}>
+                <TouchableOpacity
+                  onPress={handleEdit}
+                  style={styles.actionButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="create-outline" size={18} color="#888" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDelete}
+                  style={styles.actionButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#FF4444" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
           {setDetails && (
             <Text style={styles.setDetails}>
@@ -211,6 +225,13 @@ export function WorkoutCard({
           )}
         </View>
       </View>
+    );
+
+    // Wrap in Pressable to handle tap in both modes
+    return (
+      <Pressable onPress={handleCardPress}>
+        {cardContent}
+      </Pressable>
     );
   }
 
