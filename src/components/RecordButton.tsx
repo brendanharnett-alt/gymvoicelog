@@ -308,7 +308,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
             <Ionicons
               name={isRecording ? 'mic' : 'mic-outline'}
               size={42}
-              color={isTranscribing ? '#666666' : '#FFFFFF'}
+              color={isTranscribing ? '#666666' : '#FFBF00'}
             />
           </Pressable>
 
@@ -345,13 +345,13 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: '#FFBF00', // Amber yellow to match headers and buttons
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 2,
-    shadowColor: '#FFFFFF',
+    shadowColor: '#FFBF00', // Amber yellow shadow to match
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
   },
   buttonRecording: {

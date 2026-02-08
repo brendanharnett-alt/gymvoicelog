@@ -453,12 +453,31 @@ export function WorkoutCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: 'rgba(40, 40, 40, 0.75)', // Dark charcoal with 75% opacity for glass effect
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: 'rgba(255, 255, 255, 0.1)', // Subtle outer border
     marginBottom: 12,
+    // Enhanced 3D shadow effect - deeper and more pronounced
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 12, // Increased from 8 to 12 for more depth
+    },
+    shadowOpacity: 0.6, // Increased from 0.5 for stronger shadow
+    shadowRadius: 30, // Increased from 24 for softer, larger shadow
+    elevation: 15, // Increased from 10 for more Android depth
+    // Enhanced inner highlights for stronger 3D effect
+    borderTopWidth: 1.5, // Slightly thicker top border
+    borderTopColor: 'rgba(255, 255, 255, 0.3)', // Brighter top highlight (increased from 0.25)
+    borderLeftWidth: 1.5, // Slightly thicker left border
+    borderLeftColor: 'rgba(255, 255, 255, 0.2)', // Brighter left highlight (increased from 0.15)
+    // Add subtle bottom shadow border for depth
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.3)', // Dark bottom edge
+    // Overlay effect for translucency
+    overflow: 'hidden',
   },
   cardSelected: {
     borderColor: '#FF4444',
@@ -487,9 +506,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   exerciseName: {
-    fontSize: 16,
+    fontSize: 18, // Slightly larger than data
     fontWeight: '700',
-    color: '#FFBF00', // Yellow accent color
+    color: '#FFBF00', // Amber Yellow
     textTransform: 'uppercase',
     flexWrap: 'wrap',
   },
@@ -498,13 +517,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   setLine: {
-    fontSize: 14,
-    color: '#FFFFFF',
+    fontSize: 15, // Same size as weight/rep numbers, slightly smaller than title
+    color: '#FFFFFF', // Pure White
     marginBottom: 2,
   },
   setDetails: {
-    fontSize: 14,
-    color: '#FFFFFF',
+    fontSize: 15, // Same size as weight/rep numbers
+    color: '#FFFFFF', // Pure White
     marginTop: 4,
     marginBottom: 6,
   },
@@ -523,7 +542,7 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: '#888888',
+    color: '#FFFFFF', // Pure White
   },
   rawTranscriptionContainer: {
     flexDirection: 'row',
@@ -539,7 +558,7 @@ const styles = StyleSheet.create({
   },
   rawTranscription: {
     fontSize: 12,
-    color: '#999999', // Muted grey
+    color: '#FFFFFF', // Pure White
     flex: 1,
     flexWrap: 'wrap',
     lineHeight: 16,
