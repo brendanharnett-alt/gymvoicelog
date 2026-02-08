@@ -255,12 +255,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFD700', // Yellow accent color
+    backgroundColor: '#FFBF00', // Yellow accent color
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: '#FFBF00',
     gap: 8,
   },
   actionButtonText: {

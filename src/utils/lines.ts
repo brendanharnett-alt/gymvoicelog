@@ -48,23 +48,35 @@ export function summaryToTypedLines(summary: string): CardLine[] {
   }
   
   const lines = summary.split('\n');
+  
+  // Count non-empty lines
+  const nonEmptyLines = lines.filter(line => line.trim().length > 0);
+  const hasMultipleNonEmptyLines = nonEmptyLines.length > 1;
+  
+  // Check if a line contains any digits
+  const hasDigits = (text: string): boolean => {
+    return /\d/.test(text);
+  };
+  
   return lines.map((line) => {
     const trimmed = line.trim();
     
     // Determine kind based on content
-    let kind: LineKind = 'header';
+    let kind: LineKind = 'body'; // Default to body
     
-    // If line matches set pattern, it's a body line
-    if (SET_PATTERN.test(trimmed)) {
+    // Empty lines are always body
+    if (trimmed === '') {
       kind = 'body';
     }
-    // Empty lines are body lines
-    else if (trimmed === '') {
-      kind = 'body';
-    }
-    // All other non-empty lines are headers
-    else {
+    // A line can only be header if ALL are true:
+    // 1. Summary has more than one non-empty line
+    // 2. Line contains no digits
+    else if (hasMultipleNonEmptyLines && !hasDigits(trimmed)) {
       kind = 'header';
+    }
+    // All other non-empty lines are body
+    else {
+      kind = 'body';
     }
     
     return {

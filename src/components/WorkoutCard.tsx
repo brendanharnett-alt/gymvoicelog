@@ -384,7 +384,7 @@ export function WorkoutCard({
                   <Ionicons
                     name={line.kind === 'header' ? 'text-outline' : 'list-outline'}
                     size={20}
-                    color={line.kind === 'header' ? '#FFD700' : '#888888'}
+                    color={line.kind === 'header' ? '#FFBF00' : '#888888'}
                   />
                 </TouchableOpacity>
                 <TextInput
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFD700', // Yellow accent color
+    color: '#FFBF00', // Yellow accent color
     textTransform: 'uppercase',
     flexWrap: 'wrap',
   },
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   },
   rawTranscriptionIndicator: {
     width: 3,
-    backgroundColor: '#FFD700', // Yellow accent color
+    backgroundColor: '#FFBF00', // Yellow accent color
     marginRight: 8,
     marginTop: 2,
     minHeight: 16,
