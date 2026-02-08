@@ -8,6 +8,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from 'react-native-draggable-flatlist';
 import { DayWorkout, WorkoutEntry } from '../types/workout';
 import { WorkoutCard } from './WorkoutCard';
 
@@ -24,6 +28,9 @@ interface WorkoutCardListProps {
   isCombining?: boolean;
   combineMode?: boolean;
   onCombineModeChange?: (enabled: boolean) => void;
+  isRecording?: boolean;
+  isSummaryInputFocused?: boolean;
+  onReorderEntries?: (orderedIds: string[]) => void;
 }
 
 export function WorkoutCardList({
@@ -39,6 +46,9 @@ export function WorkoutCardList({
   isCombining = false,
   combineMode = false,
   onCombineModeChange,
+  isRecording = false,
+  isSummaryInputFocused = false,
+  onReorderEntries,
 }: WorkoutCardListProps) {
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
   // Track focus count to handle multiple cards (though typically only one is expanded)
@@ -47,12 +57,72 @@ export function WorkoutCardList({
   const selectedCount = selectedCardIds.size;
   const canCombine = selectedCount >= 2 && onCombine;
 
-  // Sort entries: newest → oldest (by timestamp)
-  const sortedEntries = [...dayWorkout.entries].sort((a, b) => {
-    const timeA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
-    const timeB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
-    return timeB.getTime() - timeA.getTime();
-  });
+  // Use entries in their stored order (preserves drag-and-drop reordering)
+  // The order in dayWorkout.entries is the source of truth after any manual reordering
+  const sortedEntries = [...dayWorkout.entries];
+
+  // Determine if dragging should be disabled
+  const isDragDisabled = isRecording || combineMode || isSummaryInputFocused;
+
+  // Handle drag end - reorder entries
+  const handleDragEnd = useCallback(({ data }: { data: WorkoutEntry[] }) => {
+    if (onReorderEntries && !isDragDisabled) {
+      const orderedIds = data.map(entry => entry.id);
+      onReorderEntries(orderedIds);
+    }
+  }, [onReorderEntries, isDragDisabled]);
+
+  // Render item for DraggableFlatList
+  const renderItem = useCallback(({ item, drag, isActive }: RenderItemParams<WorkoutEntry>) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCardList.tsx:76',message:'renderItem called',data:{entryId:item.id,isDragDisabled,isActive,combineMode},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
+    // #endregion
+    const handleLongPress = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCardList.tsx:handleLongPress',message:'Long press detected, calling drag',data:{entryId:item.id,isDragDisabled},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
+      // #endregion
+      if (!isDragDisabled) {
+        drag();
+      }
+    };
+    return (
+      <ScaleDecorator>
+        <Pressable
+          onLongPress={isDragDisabled ? undefined : handleLongPress}
+          delayLongPress={300}
+          disabled={isDragDisabled || isActive}
+          onPress={() => {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCardList.tsx:onPress',message:'Outer Pressable onPress fired',data:{entryId:item.id,combineMode},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
+            // #endregion
+          }}
+        >
+          <WorkoutCard
+            entry={item}
+            onUpdate={(updates) => handleUpdate(item.id, updates)}
+            onDelete={() => handleDelete(item.id)}
+            autoFocus={newlyCreatedId === item.id}
+            onSummaryFocusChange={handleSummaryFocusChange}
+            isSelected={selectedCardIds.has(item.id)}
+            onSelect={combineMode && onSelectCard ? () => onSelectCard(item.id) : undefined}
+            onDeselect={combineMode && onDeselectCard ? () => onDeselectCard(item.id) : undefined}
+            showSelectionCheckbox={combineMode}
+            combineMode={combineMode}
+          />
+        </Pressable>
+      </ScaleDecorator>
+    );
+  }, [
+    isDragDisabled,
+    newlyCreatedId,
+    handleUpdate,
+    handleDelete,
+    handleSummaryFocusChange,
+    selectedCardIds,
+    combineMode,
+    onSelectCard,
+    onDeselectCard,
+  ]);
 
   // Handle add button tap
   const handleAddCard = useCallback(() => {
@@ -159,38 +229,26 @@ export function WorkoutCardList({
       )}
 
       {/* Card list */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {sortedEntries.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="fitness-outline" size={48} color="#444" />
-            <Text style={styles.emptyText}>No workouts yet</Text>
-            <Text style={styles.emptySubtext}>
-              Tap "+ Add" to create your first exercise card
-            </Text>
-          </View>
-        ) : (
-          sortedEntries.map((entry) => (
-            <WorkoutCard
-              key={entry.id}
-              entry={entry}
-              onUpdate={(updates) => handleUpdate(entry.id, updates)}
-              onDelete={() => handleDelete(entry.id)}
-              autoFocus={newlyCreatedId === entry.id}
-              onSummaryFocusChange={handleSummaryFocusChange}
-              isSelected={selectedCardIds.has(entry.id)}
-              onSelect={combineMode && onSelectCard ? () => onSelectCard(entry.id) : undefined}
-              onDeselect={combineMode && onDeselectCard ? () => onDeselectCard(entry.id) : undefined}
-              showSelectionCheckbox={combineMode}
-              combineMode={combineMode}
-            />
-          ))
-        )}
-      </ScrollView>
+      {sortedEntries.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="fitness-outline" size={48} color="#444" />
+          <Text style={styles.emptyText}>No workouts yet</Text>
+          <Text style={styles.emptySubtext}>
+            Tap "+ Add" to create your first exercise card
+          </Text>
+        </View>
+      ) : (
+        <DraggableFlatList
+          data={sortedEntries}
+          onDragEnd={handleDragEnd}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          activationDistance={10}
+        />
+      )}
     </View>
   );
 }

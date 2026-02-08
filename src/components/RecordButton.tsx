@@ -18,6 +18,7 @@ interface RecordButtonProps {
     summary?: string | null;
     extractedLifts?: any[] | null;
   }) => void;
+  onRecordingStateChange?: (isRecording: boolean) => void;
 }
 
 const BACKEND_URL = 'https://gymvoicelog-stt-production.up.railway.app/transcribe';
@@ -30,7 +31,7 @@ const HOLD_TO_START_MS = 250;
 // Hard safety stop: prevents runaway recordings even if events get missed.
 const MAX_RECORDING_MS = 90_000; // 90s (change to 120_000 if you want 2 minutes)
 
-export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
+export function RecordButton({ onRecordingComplete, onRecordingStateChange }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
@@ -133,6 +134,9 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       recordingRef.current = recording;
       isRecordingRef.current = true;
       setIsRecording(true);
+      if (onRecordingStateChange) {
+        onRecordingStateChange(true);
+      }
 
       // Animate into recording state
       scale.value = withSpring(1.15);
@@ -155,6 +159,9 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       // If start failed, reset UI state
       isRecordingRef.current = false;
       setIsRecording(false);
+      if (onRecordingStateChange) {
+        onRecordingStateChange(false);
+      }
       cancelAnimation(pulseScale);
       pulseScale.value = 1;
       scale.value = withSpring(1);
@@ -172,6 +179,9 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     // Immediately flip state so UI cannot get stuck
     isRecordingRef.current = false;
     setIsRecording(false);
+    if (onRecordingStateChange) {
+      onRecordingStateChange(false);
+    }
 
     // Clear timers & animations
     clearMaxTimer();

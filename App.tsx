@@ -53,6 +53,7 @@ export default function App() {
   const [isSummaryInputFocused, setIsSummaryInputFocused] = useState(false);
   const [isCombining, setIsCombining] = useState(false);
   const [combineMode, setCombineMode] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -310,6 +311,9 @@ export default function App() {
             isCombining={isCombining}
             combineMode={combineMode}
             onCombineModeChange={setCombineMode}
+            isRecording={isRecording}
+            isSummaryInputFocused={isSummaryInputFocused}
+            onReorderEntries={reorderEntries}
           />
         </View>
       </SwipeContainer>
@@ -330,7 +334,10 @@ export default function App() {
               <Text style={styles.recordingTargetChange}>Change</Text>
             </TouchableOpacity>
           )}
-          <RecordButton onRecordingComplete={handleRecordingComplete} />
+          <RecordButton 
+            onRecordingComplete={handleRecordingComplete}
+            onRecordingStateChange={setIsRecording}
+          />
         </View>
       )}
 

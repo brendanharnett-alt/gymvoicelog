@@ -218,13 +218,17 @@ export function WorkoutCard({
     }
   };
 
-  // Handle card press - in combine mode, toggle selection; otherwise, edit
+  // Handle card press - only in combine mode to toggle selection
+  // Edit is now only accessible via the edit icon button
   const handleCardPress = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCard.tsx:222',message:'handleCardPress called',data:{combineMode,entryId:entry.id},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
+    // #endregion
+    // Only handle press in combine mode for selection
     if (combineMode) {
       handleSelectionToggle();
-    } else {
-      handleEdit();
     }
+    // Edit is now only via edit icon - no action needed here
   };
 
   const exerciseName = getExerciseName(entry);
@@ -345,12 +349,25 @@ export function WorkoutCard({
       </View>
     );
 
-    // Wrap in Pressable to handle tap in both modes
-    return (
-      <Pressable onPress={handleCardPress}>
-        {cardContent}
-      </Pressable>
-    );
+    // Wrap in Pressable only for combine mode selection
+    // In normal mode, no press handler - allows drag to work
+    if (combineMode) {
+      return (
+        <Pressable 
+          onPress={handleCardPress}
+          onPressIn={() => {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCard.tsx:onPressIn',message:'Card Pressable onPressIn fired (combine mode)',data:{entryId:entry.id,combineMode},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
+            // #endregion
+          }}
+        >
+          {cardContent}
+        </Pressable>
+      );
+    }
+    // In normal mode, return card content directly (no Pressable wrapper)
+    // This allows the outer drag Pressable to handle gestures
+    return cardContent;
   }
 
   // Expanded view
