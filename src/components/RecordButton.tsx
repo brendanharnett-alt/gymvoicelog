@@ -13,20 +13,57 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface RecordButtonProps {
-  onRecordingComplete: (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => void;
+  onRecordingComplete: (result: {
+    transcript: string;
+    summary?: string | null;
+    extractedLifts?: any[] | null;
+  }) => void;
 }
 
-const BACKEND_URL  = 'https://gymvoicelog-stt-production.up.railway.app/transcribe';
+const BACKEND_URL = 'https://gymvoicelog-stt-production.up.railway.app/transcribe';
 
+// --- Tunables ---
+// Hold threshold: how long the finger must stay down before we start recording.
+// This is the key to "tap can never start recording".
+const HOLD_TO_START_MS = 250;
+
+// Hard safety stop: prevents runaway recordings even if events get missed.
+const MAX_RECORDING_MS = 90_000; // 90s (change to 120_000 if you want 2 minutes)
 
 export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
-  const isRecordingRef = useRef(false);
+
+  // Refs for correctness under async/timing edge cases
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const isRecordingRef = useRef(false);
   const isTransitioningRef = useRef(false);
+
+  // Press/gesture gating
+  const isPressingRef = useRef(false);
+  const pendingStartRef = useRef(false);
+
+  // Timers
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHoldTimer = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    pendingStartRef.current = false;
+  };
+
+  const clearMaxTimer = () => {
+    if (maxTimerRef.current) {
+      clearTimeout(maxTimerRef.current);
+      maxTimerRef.current = null;
+    }
+  };
 
   // Pre-request permissions and set audio mode on mount for faster recording start
   useEffect(() => {
@@ -38,7 +75,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
           playsInSilentModeIOS: true,
         });
       } catch (err) {
-        // Silently handle permission errors - will retry on recording start
+        // Will retry when starting recording
         console.error('Failed to prepare audio', err);
       }
     };
@@ -48,13 +85,19 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      clearHoldTimer();
+      clearMaxTimer();
+
+      isPressingRef.current = false;
+      pendingStartRef.current = false;
+
       if (isRecordingRef.current) {
-        // Stop any ongoing recording if component unmounts mid-press
         isRecordingRef.current = false;
         cancelAnimation(pulseScale);
         scale.value = 1;
         pulseScale.value = 1;
       }
+
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
         recordingRef.current = null;
@@ -62,40 +105,17 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     };
   }, [scale, pulseScale]);
 
-  const handlePressIn = () => {
-    // Prevent interaction during transcription
-    if (isTranscribing) {
-      return;
-    }
-    // Provide immediate visual feedback on press (but don't start recording)
-    if (!isRecordingRef.current) {
-      scale.value = withSpring(1.05);
-    }
-  };
-
-  const handleLongPress = () => {
-    // Prevent interaction during transcription
-    if (isTranscribing) {
-      return;
-    }
-    // If already recording, ignore this long press - user should release to stop
-    if (isRecordingRef.current) {
-      return;
-    }
-
-    // Start recording on long press
-    handleStartRecording();
-  };
-
-  const handleStartRecording = async () => {
-    // Guard against duplicate start calls and transitions
-    if (isRecordingRef.current || isTransitioningRef.current) {
-      return;
-    }
+  const startRecording = async () => {
+    // Hard guards
+    if (isTranscribing) return;
+    if (!isPressingRef.current) return;            // must still be holding
+    if (isRecordingRef.current) return;
+    if (isTransitioningRef.current) return;
 
     isTransitioningRef.current = true;
+
     try {
-      // Permissions and audio mode should already be set, but retry if needed
+      // Retry permissions/audio mode (safe even if already set)
       try {
         await Audio.requestPermissionsAsync();
         await Audio.setAudioModeAsync({
@@ -103,7 +123,6 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
           playsInSilentModeIOS: true,
         });
       } catch (permErr) {
-        // If pre-setup failed, try again
         console.error('Audio setup retry', permErr);
       }
 
@@ -114,98 +133,106 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
       recordingRef.current = recording;
       isRecordingRef.current = true;
       setIsRecording(true);
+
+      // Animate into recording state
       scale.value = withSpring(1.15);
       pulseScale.value = withRepeat(
         withTiming(1.3, { duration: 1000 }),
         -1,
         true
       );
+
+      // Safety: force-stop after max duration no matter what
+      clearMaxTimer();
+      maxTimerRef.current = setTimeout(() => {
+        // If still recording, stop it. This prevents runaway.
+        if (isRecordingRef.current) {
+          handleStopRecording().catch(() => {});
+        }
+      }, MAX_RECORDING_MS);
     } catch (err) {
       console.error('Failed to start recording', err);
+      // If start failed, reset UI state
+      isRecordingRef.current = false;
+      setIsRecording(false);
+      cancelAnimation(pulseScale);
+      pulseScale.value = 1;
+      scale.value = withSpring(1);
     } finally {
       isTransitioningRef.current = false;
     }
   };
 
-  const handlePressOut = async () => {
-    // Reset visual feedback if not recording
-    if (!isRecordingRef.current) {
-      scale.value = withSpring(1);
-    }
-
-    // Stop recording if it's active
-    if (isRecordingRef.current) {
-      await handleStopRecording();
-    }
-  };
-
   const handleStopRecording = async () => {
-    // Always stop if recording is active, even if transitioning
-    // This prevents the button from getting stuck
+    // Stop if recording is active (even if transitioning)
     if (!isRecordingRef.current) {
       return;
     }
 
-    // Set state to false IMMEDIATELY to prevent stuck UI
+    // Immediately flip state so UI cannot get stuck
     isRecordingRef.current = false;
     setIsRecording(false);
-    isTransitioningRef.current = true;
-    
+
+    // Clear timers & animations
+    clearMaxTimer();
+    clearHoldTimer();
+
     scale.value = withSpring(1);
     cancelAnimation(pulseScale);
     pulseScale.value = 1;
 
+    isTransitioningRef.current = true;
+
     try {
-      if (recordingRef.current) {
-        await recordingRef.current.stopAndUnloadAsync();
-        const uri = recordingRef.current.getURI();
+      const rec = recordingRef.current;
+      if (rec) {
+        await rec.stopAndUnloadAsync();
+        const uri = rec.getURI();
         recordingRef.current = null;
 
-        if (uri) {
-          // Set transcribing state to show indicator and disable button
-          setIsTranscribing(true);
-          
+        if (!uri) return;
+
+        setIsTranscribing(true);
+
+        try {
+          const formData = new FormData();
+          formData.append('audio', {
+            uri,
+            type: 'audio/m4a',
+            name: 'recording.m4a',
+          } as any);
+
+          const response = await fetch(BACKEND_URL, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Upload failed: ${response.status}`);
+          }
+
+          const result = await response.json();
+          if (result?.transcript) {
+            onRecordingComplete(result);
+          }
+        } catch (err) {
+          console.error('Failed to upload/transcribe audio', err);
+        } finally {
+          setIsTranscribing(false);
           try {
-            const formData = new FormData();
-            formData.append('audio', {
-              uri,
-              type: 'audio/m4a',
-              name: 'recording.m4a',
-            } as any);
-
-            const response = await fetch(BACKEND_URL, {
-              method: 'POST',
-              body: formData,
-            });
-
-            if (!response.ok) {
-              throw new Error(`Upload failed: ${response.status}`);
-            }
-
-            const result = await response.json();
-            if (result.transcript) {
-              // Pass the full result object instead of just transcript
-              onRecordingComplete(result);
-            }
-          } catch (err) {
-            console.error('Failed to upload/transcribe audio', err);
-          } finally {
-            // Clear transcribing state
-            setIsTranscribing(false);
-            try {
-              await FileSystem.deleteAsync(uri, { idempotent: true });
-            } catch {
-              // Silently ignore deletion errors
-            }
+            await FileSystem.deleteAsync(uri, { idempotent: true });
+          } catch {
+            // ignore deletion errors
           }
         }
       }
     } catch (err: any) {
-      // Gracefully catch "no valid audio data" and similar errors
       const errorMessage = err?.message || String(err);
-      if (errorMessage.includes('no valid audio data') || 
-          errorMessage.includes('audio data')) {
-        // Silently handle invalid audio data errors
+      // Gracefully ignore common "no valid audio data" failures
+      if (
+        errorMessage.includes('no valid audio data') ||
+        errorMessage.includes('audio data')
+      ) {
         return;
       }
       console.error('Failed to stop recording', err);
@@ -214,10 +241,46 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
     }
   };
 
+  const handlePressIn = () => {
+    if (isTranscribing) return;
+    if (isRecordingRef.current) return;
+
+    isPressingRef.current = true;
+
+    // Instant feedback (no recording yet)
+    scale.value = withSpring(1.05);
+
+    // Schedule start after hold threshold.
+    // This is the “tap can’t start recording” guarantee.
+    clearHoldTimer();
+    pendingStartRef.current = true;
+
+    holdTimerRef.current = setTimeout(() => {
+      pendingStartRef.current = false;
+      // Only start if still pressing (true hold)
+      if (isPressingRef.current) {
+        startRecording().catch(() => {});
+      }
+    }, HOLD_TO_START_MS);
+  };
+
+  const handlePressOut = async () => {
+    // Finger is up => cancel any pending start
+    isPressingRef.current = false;
+    clearHoldTimer();
+
+    // If not recording, just reset visuals
+    if (!isRecordingRef.current) {
+      scale.value = withSpring(1);
+      return;
+    }
+
+    // If recording, stop
+    await handleStopRecording();
+  };
+
   const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
+    return { transform: [{ scale: scale.value }] };
   });
 
   const pulseStyle = useAnimatedStyle(() => {
@@ -239,9 +302,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
               isTranscribing && styles.buttonDisabled,
             ]}
             onPressIn={handlePressIn}
-            onLongPress={handleLongPress}
             onPressOut={handlePressOut}
-            delayLongPress={100}
             disabled={isTranscribing}
           >
             <Ionicons
@@ -250,6 +311,7 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
               color={isTranscribing ? '#666666' : '#FFFFFF'}
             />
           </Pressable>
+
           {isTranscribing && (
             <View style={styles.transcriptionOverlay}>
               <View style={styles.transcriptionIndicator}>
@@ -260,12 +322,13 @@ export function RecordButton({ onRecordingComplete }: RecordButtonProps) {
           )}
         </View>
       </Animated.View>
+
       <Text style={styles.label}>
         {isTranscribing
           ? 'Transcribing...'
           : isRecording
           ? 'Recording...'
-          : 'Hold to record'}
+          : `Hold to record`}
       </Text>
     </View>
   );
@@ -287,10 +350,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 2,
     shadowColor: '#FFFFFF',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
@@ -343,4 +403,3 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 });
-
