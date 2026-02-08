@@ -21,6 +21,7 @@ import { MonthYearPicker } from './src/components/MonthYearPicker';
 import { WorkoutEntry } from './src/types/workout';
 import { startOfMonth, normalizeDate, getDateLabel } from './src/utils/dateUtils';
 import { combineCards } from './src/utils/combineCards';
+import { textToBodyLines, summaryToTypedLines } from './src/utils/lines';
 
 type CalendarView = 'days' | 'months';
 
@@ -120,15 +121,22 @@ export default function App() {
     const newEntry = addEntry(displayText, targetDate);
     
     // Update with structured data
+    // Compute typed lines
+    const lines = result.summary 
+      ? summaryToTypedLines(result.summary)
+      : textToBodyLines(result.transcript);
+    
     if (result.summary) {
       updateEntry(newEntry.id, {
         title: result.summary,
         rawTranscription: result.transcript,
+        lines,
       });
     } else {
       // Fallback: if no summary, store transcript as rawTranscription
       updateEntry(newEntry.id, {
         rawTranscription: result.transcript,
+        lines,
       });
     }
     

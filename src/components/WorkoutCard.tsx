@@ -10,7 +10,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WorkoutEntry } from '../types/workout';
+import { WorkoutEntry, CardLine } from '../types/workout';
+import { textToBodyLines } from '../utils/lines';
 
 interface WorkoutCardProps {
   entry: WorkoutEntry;
@@ -32,11 +33,18 @@ function getExerciseName(entry: WorkoutEntry): string {
   if (entry.exercise) {
     return entry.exercise;
   }
+  // Extract first line (exercise name) if title/text contains newlines
+  const getFirstLine = (text: string | undefined): string => {
+    if (!text) return '';
+    const firstLine = text.split('\n')[0].trim();
+    return firstLine;
+  };
+  
   if (entry.title && entry.title.trim()) {
-    return entry.title;
+    return getFirstLine(entry.title);
   }
   if (entry.text && entry.text.trim()) {
-    return entry.text;
+    return getFirstLine(entry.text);
   }
   return 'Untitled entry';
 }
@@ -78,18 +86,35 @@ export function WorkoutCard({
   };
   const [summaryText, setSummaryText] = useState(getInitialSummaryText());
   
-  const summaryInputRef = useRef<TextInput>(null);
+  // Initialize editable lines for edit mode
+  const getInitialLines = (): CardLine[] => {
+    if (entry.lines && entry.lines.length > 0) {
+      // Use existing lines, create a copy for editing
+      return entry.lines.map(line => ({ ...line }));
+    }
+    // For manual cards without lines, initialize from text/title (all as body)
+    const sourceText = entry.title || entry.text || '';
+    if (sourceText.trim()) {
+      return textToBodyLines(sourceText);
+    }
+    // Empty card - start with one empty body line
+    return [{ id: `${Date.now()}-${Math.random()}`, text: '', kind: 'body' }];
+  };
+  const [editableLines, setEditableLines] = useState<CardLine[]>(getInitialLines());
+  
+  const firstLineInputRef = useRef<TextInput | null>(null);
+  const lineInputRefs = useRef<Map<string, TextInput>>(new Map());
 
   // Auto-expand and focus if requested
   useEffect(() => {
-    if (autoFocus) {
+    if (autoFocus && editableLines.length > 0) {
       setCardState('expanded');
       // Small delay to ensure input is mounted
       setTimeout(() => {
-        summaryInputRef.current?.focus();
+        firstLineInputRef.current?.focus();
       }, 100);
     }
-  }, [autoFocus]);
+  }, [autoFocus, editableLines.length]);
 
   // Update summary text when entry changes (e.g., from external updates)
   // Only update if we're not currently editing (collapsed state)
@@ -97,8 +122,10 @@ export function WorkoutCard({
     if (cardState === 'collapsed') {
       const newSummary = getInitialSummaryText();
       setSummaryText(newSummary);
+      // Reset editable lines when collapsing
+      setEditableLines(getInitialLines());
     }
-  }, [entry.title, entry.text, cardState]);
+  }, [entry.title, entry.text, entry.lines, cardState]);
 
   // Handle edit (expand card)
   const handleEdit = () => {
@@ -114,16 +141,58 @@ export function WorkoutCard({
     }
   };
 
-  // Handle collapse - save the edited summary text as title
+  // Handle collapse - save the edited lines back to entry
   const handleCollapse = () => {
     Keyboard.dismiss();
-    // Save the summary text as title when collapsing
-    onUpdate({ title: summaryText.trim() || undefined });
+    // Save the editable lines back to entry.lines
+    // Also update title for backward compatibility (join header lines)
+    const headerLines = editableLines.filter(l => l.kind === 'header');
+    const titleText = headerLines.length > 0 
+      ? headerLines.map(l => l.text).join('\n')
+      : editableLines.map(l => l.text).join('\n').split('\n')[0] || '';
+    
+    onUpdate({ 
+      lines: editableLines,
+      title: titleText.trim() || undefined 
+    });
     setCardState('collapsed');
     // Reset focus state when collapsing
     if (onSummaryFocusChange) {
       onSummaryFocusChange(false);
     }
+  };
+  
+  // Handle line text change
+  const handleLineTextChange = (lineId: string, newText: string) => {
+    setEditableLines(prev => 
+      prev.map(line => line.id === lineId ? { ...line, text: newText } : line)
+    );
+  };
+  
+  // Handle line kind toggle
+  const handleLineKindToggle = (lineId: string) => {
+    setEditableLines(prev =>
+      prev.map(line => 
+        line.id === lineId 
+          ? { ...line, kind: line.kind === 'header' ? 'body' : 'header' }
+          : line
+      )
+    );
+  };
+  
+  // Handle adding a new line
+  const handleAddLine = () => {
+    const newLine: CardLine = {
+      id: `${Date.now()}-${Math.random()}`,
+      text: '',
+      kind: 'body',
+    };
+    setEditableLines(prev => [...prev, newLine]);
+  };
+  
+  // Handle removing a line
+  const handleRemoveLine = (lineId: string) => {
+    setEditableLines(prev => prev.filter(line => line.id !== lineId));
   };
 
   // Handle summary input focus
@@ -166,6 +235,23 @@ export function WorkoutCard({
     : new Date(entry.timestamp);
   const timestamp = timestampDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // Parse multiple sets from title/text if it contains newlines
+  // Format: "Exercise Name\n225 x 6\n245 x 6" -> extract sets
+  // NOTE: This is legacy logic - only used when entry.lines is not available
+  const parseSetsFromText = (text: string | undefined): string[] => {
+    if (!text) return [];
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    // First line is usually the exercise name, rest are sets
+    // Check if lines match set pattern (e.g., "225 x 6", "100 x 10")
+    const setPattern = /^\d+\s*x\s*\d+/i; // Matches "225 x 6" or "100x10"
+    return lines.filter(line => setPattern.test(line));
+  };
+
+  // Get sets from title or text (legacy fallback)
+  const setLines = parseSetsFromText(entry.title || entry.text);
+  // If no sets found in title/text, use the structured setDetails
+  const displaySets = setLines.length > 0 ? setLines : (setDetails ? [setDetails] : []);
+
   // Collapsed view
   if (cardState === 'collapsed') {
     const cardContent = (
@@ -186,11 +272,28 @@ export function WorkoutCard({
                 />
               </TouchableOpacity>
             )}
-            <View style={styles.exerciseNameContainer}>
-              <Text style={styles.exerciseName}>
-                {exerciseName}
-              </Text>
-            </View>
+            {entry.lines ? (
+              // Render typed lines if available
+              <View style={styles.exerciseNameContainer}>
+                {entry.lines.map((line, index) => {
+                  if (line.kind === 'header') {
+                    return (
+                      <Text key={line.id} style={styles.exerciseName}>
+                        {line.text}
+                      </Text>
+                    );
+                  }
+                  return null; // Body lines rendered below
+                })}
+              </View>
+            ) : (
+              // Legacy rendering fallback
+              <View style={styles.exerciseNameContainer}>
+                <Text style={styles.exerciseName}>
+                  {exerciseName}
+                </Text>
+              </View>
+            )}
             {!combineMode && (
               <View style={styles.collapsedActions}>
                 <TouchableOpacity
@@ -198,30 +301,54 @@ export function WorkoutCard({
                   style={styles.actionButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="create-outline" size={18} color="#888" />
+                  <Ionicons name="create-outline" size={18} color="#888888" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleDelete}
                   style={styles.actionButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#FF4444" />
+                  <Ionicons name="trash-outline" size={18} color="#888888" />
                 </TouchableOpacity>
               </View>
             )}
           </View>
-          {setDetails && (
-            <Text style={styles.setDetails}>
-              {setDetails}
-            </Text>
+          {entry.lines ? (
+            // Render typed body lines
+            <View style={styles.setsContainer}>
+              {entry.lines.map((line) => {
+                if (line.kind === 'body') {
+                  return (
+                    <Text key={line.id} style={styles.setLine}>
+                      {line.text}
+                    </Text>
+                  );
+                }
+                return null;
+              })}
+            </View>
+          ) : (
+            // Legacy rendering fallback
+            displaySets.length > 0 && (
+              <View style={styles.setsContainer}>
+                {displaySets.map((set, index) => (
+                  <Text key={index} style={styles.setLine}>
+                    {set}
+                  </Text>
+                ))}
+              </View>
+            )
           )}
           <View style={styles.collapsedMeta}>
             <Text style={styles.timestamp}>{timestamp}</Text>
           </View>
-          {entry.rawTranscription && (
-            <Text style={styles.rawTranscription}>
-              {entry.rawTranscription}
-            </Text>
+          {!entry.lines && entry.rawTranscription && (
+            <View style={styles.rawTranscriptionContainer}>
+              <View style={styles.rawTranscriptionIndicator} />
+              <Text style={styles.rawTranscription}>
+                {entry.rawTranscription}
+              </Text>
+            </View>
           )}
         </View>
       </View>
@@ -241,30 +368,73 @@ export function WorkoutCard({
       {/* Header with collapse and delete buttons */}
       <View style={styles.expandedHeader}>
         <TouchableOpacity onPress={handleCollapse} style={styles.collapseButton}>
-          <Ionicons name="chevron-up" size={20} color="#888" />
+          <Ionicons name="chevron-up" size={20} color="#888888" />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
-          <Ionicons name="trash-outline" size={18} color="#FF4444" />
+          <Ionicons name="trash-outline" size={18} color="#888888" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.expandedContent}>
-        {/* First text area: Editable summary/parsed text */}
+        {/* Editable lines list */}
         <View style={styles.textAreaContainer}>
-          <Text style={styles.fieldLabel}>Summary</Text>
-          <TextInput
-            ref={summaryInputRef}
-            style={[styles.textInput, styles.editableTextArea]}
-            value={summaryText}
-            onChangeText={setSummaryText}
-            placeholder="Edit workout summary..."
-            placeholderTextColor="#666"
-            multiline={true}
-            textAlignVertical="top"
-            scrollEnabled={true}
-            onFocus={handleSummaryFocus}
-            onBlur={handleSummaryBlur}
-          />
+          <Text style={styles.fieldLabel}>Workout Content</Text>
+          <ScrollView 
+            style={styles.linesScrollView}
+            nestedScrollEnabled={true}
+          >
+            {editableLines.map((line, index) => (
+              <View key={line.id} style={styles.lineRow}>
+                <TouchableOpacity
+                  onPress={() => handleLineKindToggle(line.id)}
+                  style={styles.lineKindToggle}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={line.kind === 'header' ? 'text-outline' : 'list-outline'}
+                    size={20}
+                    color={line.kind === 'header' ? '#FFD700' : '#888888'}
+                  />
+                </TouchableOpacity>
+                <TextInput
+                  ref={(ref) => {
+                    if (ref) {
+                      lineInputRefs.current.set(line.id, ref);
+                      if (index === 0 && !firstLineInputRef.current) {
+                        (firstLineInputRef as React.MutableRefObject<TextInput | null>).current = ref;
+                      }
+                    }
+                  }}
+                  style={[styles.lineTextInput, line.kind === 'header' && styles.lineTextInputHeader]}
+                  value={line.text}
+                  onChangeText={(text) => handleLineTextChange(line.id, text)}
+                  placeholder={line.kind === 'header' ? 'Exercise name...' : 'Set details...'}
+                  placeholderTextColor="#666"
+                  multiline={true}
+                  textAlignVertical="top"
+                  onFocus={handleSummaryFocus}
+                  onBlur={handleSummaryBlur}
+                />
+                {editableLines.length > 1 && (
+                  <TouchableOpacity
+                    onPress={() => handleRemoveLine(line.id)}
+                    style={styles.lineRemoveButton}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color="#888888" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            <TouchableOpacity
+              onPress={handleAddLine}
+              style={styles.addLineButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#888888" />
+              <Text style={styles.addLineText}>Add line</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
         {/* Second text area: Read-only raw transcription */}
@@ -327,13 +497,23 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: '#FFD700', // Yellow accent color
+    textTransform: 'uppercase',
     flexWrap: 'wrap',
+  },
+  setsContainer: {
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  setLine: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
   setDetails: {
     fontSize: 14,
-    color: '#CCCCCC',
+    color: '#FFFFFF',
     marginTop: 4,
     marginBottom: 6,
   },
@@ -354,12 +534,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888888',
   },
+  rawTranscriptionContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+    alignItems: 'flex-start',
+  },
+  rawTranscriptionIndicator: {
+    width: 3,
+    backgroundColor: '#FFD700', // Yellow accent color
+    marginRight: 8,
+    marginTop: 2,
+    minHeight: 16,
+  },
   rawTranscription: {
     fontSize: 12,
-    color: '#666666',
-    marginTop: 6,
-    fontStyle: 'italic',
+    color: '#999999', // Muted grey
+    flex: 1,
     flexWrap: 'wrap',
+    lineHeight: 16,
   },
   expandedHeader: {
     flexDirection: 'row',
@@ -415,6 +607,56 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#666666',
+  },
+  linesScrollView: {
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 8,
+    backgroundColor: '#0A0A0A',
+    padding: 8,
+  },
+  lineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    gap: 8,
+  },
+  lineKindToggle: {
+    padding: 4,
+    marginTop: 4,
+  },
+  lineTextInput: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 14,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    minHeight: 36,
+    maxHeight: 100,
+  },
+  lineTextInputHeader: {
+    fontWeight: '700',
+    color: '#FFD700',
+  },
+  lineRemoveButton: {
+    padding: 4,
+    marginTop: 4,
+  },
+  addLineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    marginTop: 4,
+    gap: 6,
+  },
+  addLineText: {
+    color: '#888888',
+    fontSize: 14,
   },
 });
 

@@ -1,3 +1,11 @@
+export type LineKind = "header" | "body";
+
+export interface CardLine {
+  id: string;
+  text: string;
+  kind: LineKind;
+}
+
 export interface WorkoutEntry {
   id: string;
   text: string; // Legacy field - kept for backwards compatibility
@@ -15,6 +23,9 @@ export interface WorkoutEntry {
   weight?: number;
   weightUnit?: 'lb' | 'kg';
   duration?: number; // Duration in minutes
+  
+  // Typed lines for structured rendering
+  lines?: CardLine[];
 }
 
 export interface DayWorkout {

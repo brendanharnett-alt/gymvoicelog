@@ -144,7 +144,7 @@ export function WorkoutCardList({
             style={styles.actionButton}
             activeOpacity={0.7}
           >
-            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <Ionicons name="add" size={20} color="#000000" />
             <Text style={styles.actionButtonText}>Add card</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -152,7 +152,7 @@ export function WorkoutCardList({
             style={styles.actionButton}
             activeOpacity={0.7}
           >
-            <Ionicons name="swap-horizontal-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="swap-horizontal-outline" size={20} color="#000000" />
             <Text style={styles.actionButtonText}>Combine</Text>
           </TouchableOpacity>
         </View>
@@ -255,18 +255,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#FFD700', // Yellow accent color
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#FFD700',
     gap: 8,
   },
   actionButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#FFFFFF',
+    fontWeight: '700', // Bold for better contrast on yellow
+    color: '#000000', // Black text
   },
   scrollView: {
     flex: 1,
