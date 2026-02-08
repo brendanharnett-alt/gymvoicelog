@@ -24,6 +24,10 @@ interface WorkoutCardProps {
   onDeselect?: () => void;
   showSelectionCheckbox?: boolean;
   combineMode?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
 type CardState = 'collapsed' | 'expanded';
@@ -72,6 +76,10 @@ export function WorkoutCard({
   onDeselect,
   showSelectionCheckbox = false,
   combineMode = false,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
 }: WorkoutCardProps) {
   const [cardState, setCardState] = useState<CardState>('collapsed');
   // Get initial summary text from entry (title or text, matching getExerciseName logic)
@@ -221,9 +229,6 @@ export function WorkoutCard({
   // Handle card press - only in combine mode to toggle selection
   // Edit is now only accessible via the edit icon button
   const handleCardPress = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCard.tsx:222',message:'handleCardPress called',data:{combineMode,entryId:entry.id},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
-    // #endregion
     // Only handle press in combine mode for selection
     if (combineMode) {
       handleSelectionToggle();
@@ -261,7 +266,30 @@ export function WorkoutCard({
     const cardContent = (
       <View style={[styles.card, isSelected && styles.cardSelected]}>
         <View style={styles.collapsedContent}>
-          <View style={styles.collapsedHeader}>
+          {/* Reorder handle - positioned on the left side */}
+          {!combineMode && (onMoveUp || onMoveDown) && (
+            <View style={styles.reorderHandle}>
+              <TouchableOpacity
+                onPress={onMoveUp}
+                disabled={!canMoveUp}
+                style={[styles.reorderHandleButton, !canMoveUp && styles.reorderButtonDisabled]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="arrow-up" size={16} color={canMoveUp ? "#888888" : "#444444"} />
+              </TouchableOpacity>
+              <View style={styles.reorderHandleDivider} />
+              <TouchableOpacity
+                onPress={onMoveDown}
+                disabled={!canMoveDown}
+                style={[styles.reorderHandleButton, !canMoveDown && styles.reorderButtonDisabled]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="arrow-down" size={16} color={canMoveDown ? "#888888" : "#444444"} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.collapsedMainContent}>
+            <View style={styles.collapsedHeader}>
             {/* Selection checkbox - only show when in combine mode */}
             {showSelectionCheckbox && combineMode && (onSelect || onDeselect) && (
               <TouchableOpacity
@@ -345,6 +373,7 @@ export function WorkoutCard({
               </Text>
             </View>
           )}
+          </View>
         </View>
       </View>
     );
@@ -355,11 +384,6 @@ export function WorkoutCard({
       return (
         <Pressable 
           onPress={handleCardPress}
-          onPressIn={() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCard.tsx:onPressIn',message:'Card Pressable onPressIn fired (combine mode)',data:{entryId:entry.id,combineMode},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
-            // #endregion
-          }}
         >
           {cardContent}
         </Pressable>
@@ -506,6 +530,11 @@ const styles = StyleSheet.create({
   },
   collapsedContent: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  collapsedMainContent: {
+    flex: 1,
   },
   collapsedHeader: {
     flexDirection: 'row',
@@ -551,6 +580,26 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 4,
+  },
+  reorderHandle: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingRight: 8,
+    borderRightWidth: 1,
+    borderRightColor: '#2A2A2A',
+  },
+  reorderHandleButton: {
+    padding: 4,
+  },
+  reorderHandleDivider: {
+    width: 20,
+    height: 1,
+    backgroundColor: '#2A2A2A',
+    marginVertical: 2,
+  },
+  reorderButtonDisabled: {
+    opacity: 0.3,
   },
   collapsedMeta: {
     flexDirection: 'row',

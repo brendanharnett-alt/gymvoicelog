@@ -2,16 +2,11 @@ import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
-  Pressable,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DraggableFlatList, {
-  RenderItemParams,
-  ScaleDecorator,
-} from 'react-native-draggable-flatlist';
 import { DayWorkout, WorkoutEntry } from '../types/workout';
 import { WorkoutCard } from './WorkoutCard';
 
@@ -57,63 +52,57 @@ export function WorkoutCardList({
   const selectedCount = selectedCardIds.size;
   const canCombine = selectedCount >= 2 && onCombine;
 
-  // Use entries in their stored order (preserves drag-and-drop reordering)
-  // The order in dayWorkout.entries is the source of truth after any manual reordering
+  // Use entries in their stored order
   const sortedEntries = [...dayWorkout.entries];
 
-  // Determine if dragging should be disabled
-  const isDragDisabled = isRecording || combineMode || isSummaryInputFocused;
-
-  // Handle drag end - reorder entries
-  const handleDragEnd = useCallback(({ data }: { data: WorkoutEntry[] }) => {
-    if (onReorderEntries && !isDragDisabled) {
-      const orderedIds = data.map(entry => entry.id);
+  // Handle move up - move entry one position earlier
+  const handleMoveUp = useCallback((entryId: string) => {
+    if (!onReorderEntries) return;
+    const currentIndex = sortedEntries.findIndex(e => e.id === entryId);
+    if (currentIndex > 0) {
+      const newOrder = [...sortedEntries];
+      [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
+      const orderedIds = newOrder.map(e => e.id);
       onReorderEntries(orderedIds);
     }
-  }, [onReorderEntries, isDragDisabled]);
+  }, [sortedEntries, onReorderEntries]);
 
-  // Render item for DraggableFlatList
-  const renderItem = useCallback(({ item, drag, isActive }: RenderItemParams<WorkoutEntry>) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCardList.tsx:76',message:'renderItem called',data:{entryId:item.id,isDragDisabled,isActive,combineMode},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
-    // #endregion
-    const handleLongPress = () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCardList.tsx:handleLongPress',message:'Long press detected, calling drag',data:{entryId:item.id,isDragDisabled},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
-      // #endregion
-      if (!isDragDisabled) {
-        drag();
-      }
-    };
+  // Handle move down - move entry one position later
+  const handleMoveDown = useCallback((entryId: string) => {
+    if (!onReorderEntries) return;
+    const currentIndex = sortedEntries.findIndex(e => e.id === entryId);
+    if (currentIndex >= 0 && currentIndex < sortedEntries.length - 1) {
+      const newOrder = [...sortedEntries];
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+      const orderedIds = newOrder.map(e => e.id);
+      onReorderEntries(orderedIds);
+    }
+  }, [sortedEntries, onReorderEntries]);
+
+  // Render item for FlatList
+  const renderItem = useCallback(({ item, index }: { item: WorkoutEntry; index: number }) => {
+    const canMoveUp = index > 0;
+    const canMoveDown = index < sortedEntries.length - 1;
+    
     return (
-      <ScaleDecorator>
-        <Pressable
-          onLongPress={isDragDisabled ? undefined : handleLongPress}
-          delayLongPress={300}
-          disabled={isDragDisabled || isActive}
-          onPress={() => {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WorkoutCardList.tsx:onPress',message:'Outer Pressable onPress fired',data:{entryId:item.id,combineMode},timestamp:Date.now(),runId:'run2',hypothesisId:'FIX'})}).catch(()=>{});
-            // #endregion
-          }}
-        >
-          <WorkoutCard
-            entry={item}
-            onUpdate={(updates) => handleUpdate(item.id, updates)}
-            onDelete={() => handleDelete(item.id)}
-            autoFocus={newlyCreatedId === item.id}
-            onSummaryFocusChange={handleSummaryFocusChange}
-            isSelected={selectedCardIds.has(item.id)}
-            onSelect={combineMode && onSelectCard ? () => onSelectCard(item.id) : undefined}
-            onDeselect={combineMode && onDeselectCard ? () => onDeselectCard(item.id) : undefined}
-            showSelectionCheckbox={combineMode}
-            combineMode={combineMode}
-          />
-        </Pressable>
-      </ScaleDecorator>
+      <WorkoutCard
+        entry={item}
+        onUpdate={(updates) => handleUpdate(item.id, updates)}
+        onDelete={() => handleDelete(item.id)}
+        autoFocus={newlyCreatedId === item.id}
+        onSummaryFocusChange={handleSummaryFocusChange}
+        isSelected={selectedCardIds.has(item.id)}
+        onSelect={combineMode && onSelectCard ? () => onSelectCard(item.id) : undefined}
+        onDeselect={combineMode && onDeselectCard ? () => onDeselectCard(item.id) : undefined}
+        showSelectionCheckbox={combineMode}
+        combineMode={combineMode}
+        onMoveUp={onReorderEntries && !combineMode ? () => handleMoveUp(item.id) : undefined}
+        onMoveDown={onReorderEntries && !combineMode ? () => handleMoveDown(item.id) : undefined}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+      />
     );
   }, [
-    isDragDisabled,
     newlyCreatedId,
     handleUpdate,
     handleDelete,
@@ -122,6 +111,10 @@ export function WorkoutCardList({
     combineMode,
     onSelectCard,
     onDeselectCard,
+    sortedEntries,
+    onReorderEntries,
+    handleMoveUp,
+    handleMoveDown,
   ]);
 
   // Handle add button tap
@@ -238,15 +231,13 @@ export function WorkoutCardList({
           </Text>
         </View>
       ) : (
-        <DraggableFlatList
+        <FlatList
           data={sortedEntries}
-          onDragEnd={handleDragEnd}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          activationDistance={10}
         />
       )}
     </View>
