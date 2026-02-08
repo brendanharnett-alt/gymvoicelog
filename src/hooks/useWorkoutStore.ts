@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WorkoutEntry, DayWorkout } from '../types/workout';
+import { WorkoutEntry, DayWorkout, CardLine } from '../types/workout';
 
 const STORAGE_KEY = 'GYMVOICELOG_CARDS';
 
@@ -267,7 +267,7 @@ export function useWorkoutStore() {
       });
   }, [currentDate, selectedCardIds]);
 
-  const combineSelectedCards = useCallback(async (combinedText: string) => {
+  const combineSelectedCards = useCallback(async (combinedLines: CardLine[]) => {
     const selectedEntries = getSelectedCards();
     if (selectedEntries.length < 2) {
       throw new Error('At least 2 cards must be selected to combine');
@@ -286,11 +286,23 @@ export function useWorkoutStore() {
       return entryTime.getTime() < earliestTime.getTime() ? entryTime : earliest;
     }, selectedEntries[0].timestamp);
 
-    // Create new combined entry
+    // Generate title from header lines (or first line if no headers) for backward compatibility
+    const headerLines = combinedLines.filter(line => line.kind === 'header');
+    const titleText = headerLines.length > 0
+      ? headerLines.map(line => line.text).join('\n')
+      : combinedLines.length > 0
+        ? combinedLines[0].text
+        : '';
+    
+    // Generate text from all lines for backward compatibility
+    const textContent = combinedLines.map(line => line.text).join('\n');
+
+    // Create new combined entry with lines
     const combinedEntry: WorkoutEntry = {
       id: `${Date.now()}-${Math.random()}`,
-      text: combinedText,
-      title: combinedText,
+      text: textContent,
+      title: titleText,
+      lines: combinedLines,
       timestamp: earliestTimestamp instanceof Date ? earliestTimestamp : new Date(earliestTimestamp),
       date: new Date(currentDate),
     };

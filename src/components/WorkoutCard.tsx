@@ -273,17 +273,22 @@ export function WorkoutCard({
               </TouchableOpacity>
             )}
             {entry.lines ? (
-              // Render typed lines if available
+              // Render typed lines in original order
               <View style={styles.exerciseNameContainer}>
-                {entry.lines.map((line, index) => {
+                {entry.lines.map((line) => {
                   if (line.kind === 'header') {
                     return (
                       <Text key={line.id} style={styles.exerciseName}>
                         {line.text}
                       </Text>
                     );
+                  } else {
+                    return (
+                      <Text key={line.id} style={styles.setLine}>
+                        {line.text}
+                      </Text>
+                    );
                   }
-                  return null; // Body lines rendered below
                 })}
               </View>
             ) : (
@@ -313,22 +318,8 @@ export function WorkoutCard({
               </View>
             )}
           </View>
-          {entry.lines ? (
-            // Render typed body lines
-            <View style={styles.setsContainer}>
-              {entry.lines.map((line) => {
-                if (line.kind === 'body') {
-                  return (
-                    <Text key={line.id} style={styles.setLine}>
-                      {line.text}
-                    </Text>
-                  );
-                }
-                return null;
-              })}
-            </View>
-          ) : (
-            // Legacy rendering fallback
+          {entry.lines ? null : (
+            // Legacy rendering fallback - only show if no lines
             displaySets.length > 0 && (
               <View style={styles.setsContainer}>
                 {displaySets.map((set, index) => (

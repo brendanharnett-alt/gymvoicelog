@@ -20,8 +20,8 @@ import { Calendar } from './src/components/Calendar';
 import { MonthYearPicker } from './src/components/MonthYearPicker';
 import { WorkoutEntry } from './src/types/workout';
 import { startOfMonth, normalizeDate, getDateLabel } from './src/utils/dateUtils';
-import { combineCards } from './src/utils/combineCards';
 import { textToBodyLines, summaryToTypedLines } from './src/utils/lines';
+import { CardLine } from './src/types/workout';
 
 type CalendarView = 'days' | 'months';
 
@@ -229,33 +229,37 @@ export default function App() {
 
     setIsCombining(true);
     try {
-      // Extract texts in chronological order (title or text fallback)
-      const texts = selectedEntries.map(entry => entry.title || entry.text || '').filter(text => text.trim().length > 0);
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:220',message:'Extracted texts for combine',data:{textsCount:texts.length,texts:texts.map(t=>t?.substring(0,50))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
-      // #endregion
+      // Extract lines from each entry in selection order
+      // Use entry.lines if available, otherwise convert legacy text using textToBodyLines
+      const allLines: CardLine[] = [];
       
-      if (texts.length < 2) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:223',message:'Not enough non-empty texts',data:{textsCount:texts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        throw new Error('At least 2 non-empty texts required to combine');
-      }
-
-      // Call AI to format combined text
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:229',message:'Calling combineCards',data:{textsCount:texts.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E,F'})}).catch(()=>{});
-      // #endregion
-      const combinedText = await combineCards(texts);
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:231',message:'combineCards returned successfully',data:{combinedTextLength:combinedText?.length,combinedTextPreview:combinedText?.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
+      selectedEntries.forEach((entry, index) => {
+        let entryLines: CardLine[];
+        
+        if (entry.lines && entry.lines.length > 0) {
+          // Use existing lines, create copies to avoid mutation
+          entryLines = entry.lines.map(line => ({ ...line }));
+        } else {
+          // Convert legacy text to body lines
+          const sourceText = entry.title || entry.text || '';
+          entryLines = textToBodyLines(sourceText);
+        }
+        
+        // Add entry lines to combined array
+        allLines.push(...entryLines);
+        
+        // Insert blank body line between cards (but not after the last card)
+        if (index < selectedEntries.length - 1) {
+          allLines.push({
+            id: `${Date.now()}-${Math.random()}`,
+            text: '',
+            kind: 'body',
+          });
+        }
+      });
 
       // Create new combined entry and delete originals
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:235',message:'Calling combineSelectedCards',data:{combinedTextLength:combinedText?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      await combineSelectedCards(combinedText);
+      await combineSelectedCards(allLines);
       // #region agent log
       fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:237',message:'combineSelectedCards completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
