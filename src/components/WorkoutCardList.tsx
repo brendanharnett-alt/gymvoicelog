@@ -305,12 +305,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFBF00', // Yellow accent color
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#FFBF00',
+    borderWidth: 2,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)', // Light top border for 3D effect
+    borderLeftColor: 'rgba(255, 255, 255, 0.2)', // Light left border
+    borderBottomColor: 'rgba(0, 0, 0, 0.3)', // Dark bottom border
+    borderRightColor: 'rgba(0, 0, 0, 0.2)', // Dark right border
     gap: 8,
+    // Enhanced 3D shadow effect
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
   actionButtonText: {
     fontSize: 16,

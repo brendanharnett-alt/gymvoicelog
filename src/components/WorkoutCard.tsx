@@ -338,7 +338,7 @@ export function WorkoutCard({
                   style={styles.actionButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="create-outline" size={18} color="#888888" />
+                  <Ionicons name="pencil" size={18} color="#888888" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleDelete}
@@ -495,28 +495,28 @@ export function WorkoutCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'rgba(40, 40, 40, 0.75)', // Dark charcoal with 75% opacity for glass effect
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)', // Subtle outer border
     marginBottom: 12,
-    // Enhanced 3D shadow effect - deeper and more pronounced
+    // Enhanced 3D shadow effect - deeper and more pronounced for stronger depth
     shadowColor: '#000000',
     shadowOffset: {
       width: 0,
-      height: 12, // Increased from 8 to 12 for more depth
+      height: 16, // Increased for more dramatic depth
     },
-    shadowOpacity: 0.6, // Increased from 0.5 for stronger shadow
-    shadowRadius: 30, // Increased from 24 for softer, larger shadow
-    elevation: 15, // Increased from 10 for more Android depth
-    // Enhanced inner highlights for stronger 3D effect
-    borderTopWidth: 1.5, // Slightly thicker top border
-    borderTopColor: 'rgba(255, 255, 255, 0.3)', // Brighter top highlight (increased from 0.25)
-    borderLeftWidth: 1.5, // Slightly thicker left border
-    borderLeftColor: 'rgba(255, 255, 255, 0.2)', // Brighter left highlight (increased from 0.15)
-    // Add subtle bottom shadow border for depth
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.3)', // Dark bottom edge
+    shadowOpacity: 0.8, // Stronger shadow for more contrast
+    shadowRadius: 40, // Larger, softer shadow for more dramatic effect
+    elevation: 20, // Higher elevation for Android
+    // Enhanced inner highlights for stronger 3D glass effect
+    borderTopWidth: 2, // Thicker top border for more pronounced highlight
+    borderTopColor: 'rgba(255, 255, 255, 0.4)', // Brighter top highlight
+    borderLeftWidth: 2, // Thicker left border
+    borderLeftColor: 'rgba(255, 255, 255, 0.3)', // Brighter left highlight
+    // Enhanced bottom shadow border for depth
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0, 0, 0, 0.5)', // Darker bottom edge for more depth
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(0, 0, 0, 0.3)', // Subtle right shadow
     // Overlay effect for translucency
     overflow: 'hidden',
   },
@@ -552,19 +552,21 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   exerciseName: {
-    fontSize: 18, // Slightly larger than data
-    fontWeight: '700',
+    fontSize: 20, // Larger for more prominence
+    fontWeight: '800', // Extra bold for stronger presence
     color: '#FFBF00', // Amber Yellow
     textTransform: 'uppercase',
     flexWrap: 'wrap',
+    letterSpacing: 0.5, // Slight letter spacing for better readability
   },
   setsContainer: {
     marginTop: 4,
     marginBottom: 6,
   },
   setLine: {
-    fontSize: 15, // Same size as weight/rep numbers, slightly smaller than title
+    fontSize: 18, // Bigger font size
     color: '#FFFFFF', // Pure White
+    fontStyle: 'italic', // Italicized as in screenshot
     marginBottom: 2,
   },
   setDetails: {
