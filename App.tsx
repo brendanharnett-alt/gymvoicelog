@@ -54,6 +54,7 @@ export default function App() {
   const [isCombining, setIsCombining] = useState(false);
   const [combineMode, setCombineMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [deleteConfirmingCardId, setDeleteConfirmingCardId] = useState<string | null>(null);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -314,6 +315,9 @@ export default function App() {
             isRecording={isRecording}
             isSummaryInputFocused={isSummaryInputFocused}
             onReorderEntries={reorderEntries}
+            deleteConfirmingCardId={deleteConfirmingCardId}
+            onDeleteConfirmStart={(cardId) => setDeleteConfirmingCardId(cardId)}
+            onDeleteConfirmCancel={() => setDeleteConfirmingCardId(null)}
           />
         </View>
       </SwipeContainer>

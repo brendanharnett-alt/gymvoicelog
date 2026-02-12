@@ -26,6 +26,9 @@ interface WorkoutCardListProps {
   isRecording?: boolean;
   isSummaryInputFocused?: boolean;
   onReorderEntries?: (orderedIds: string[]) => void;
+  deleteConfirmingCardId?: string | null;
+  onDeleteConfirmStart?: (cardId: string) => void;
+  onDeleteConfirmCancel?: () => void;
 }
 
 export function WorkoutCardList({
@@ -44,6 +47,9 @@ export function WorkoutCardList({
   isRecording = false,
   isSummaryInputFocused = false,
   onReorderEntries,
+  deleteConfirmingCardId = null,
+  onDeleteConfirmStart,
+  onDeleteConfirmCancel,
 }: WorkoutCardListProps) {
   const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
   // Track focus count to handle multiple cards (though typically only one is expanded)
@@ -100,6 +106,9 @@ export function WorkoutCardList({
         onMoveDown={onReorderEntries && !combineMode ? () => handleMoveDown(item.id) : undefined}
         canMoveUp={canMoveUp}
         canMoveDown={canMoveDown}
+        isDeleteConfirming={deleteConfirmingCardId === item.id}
+        onDeleteConfirmStart={onDeleteConfirmStart ? () => onDeleteConfirmStart(item.id) : undefined}
+        onDeleteConfirmCancel={onDeleteConfirmCancel}
       />
     );
   }, [

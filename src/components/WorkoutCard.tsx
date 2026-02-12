@@ -10,8 +10,18 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { WorkoutEntry, CardLine } from '../types/workout';
 import { textToBodyLines } from '../utils/lines';
+
+// Helper function to convert text to title case (first letter of each word capitalized)
+const toTitleCase = (text: string): string => {
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
 
 interface WorkoutCardProps {
   entry: WorkoutEntry;
@@ -28,6 +38,9 @@ interface WorkoutCardProps {
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  isDeleteConfirming?: boolean;
+  onDeleteConfirmStart?: () => void;
+  onDeleteConfirmCancel?: () => void;
 }
 
 type CardState = 'collapsed' | 'expanded';
@@ -80,6 +93,9 @@ export function WorkoutCard({
   onMoveDown,
   canMoveUp = false,
   canMoveDown = false,
+  isDeleteConfirming = false,
+  onDeleteConfirmStart,
+  onDeleteConfirmCancel,
 }: WorkoutCardProps) {
   const [cardState, setCardState] = useState<CardState>('collapsed');
   // Get initial summary text from entry (title or text, matching getExerciseName logic)
@@ -142,12 +158,67 @@ export function WorkoutCard({
     }
   };
 
-  // Handle delete
-  const handleDelete = () => {
-    if (onDelete) {
-      onDelete();
+  // Delete confirmation state and animation
+  const deleteConfirmOpacity = useSharedValue(1);
+  const deleteConfirmScale = useSharedValue(1);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Animate when entering confirm state
+  useEffect(() => {
+    if (isDeleteConfirming) {
+      // Animate in with scale and opacity (from 0.8 to 1.0 for subtle effect)
+      deleteConfirmOpacity.value = 0.8;
+      deleteConfirmScale.value = 0.8;
+      deleteConfirmOpacity.value = withTiming(1, { duration: 200 });
+      deleteConfirmScale.value = withTiming(1, { duration: 200 });
+      // Auto-revert after 3 seconds
+      deleteTimeoutRef.current = setTimeout(() => {
+        if (onDeleteConfirmCancel) {
+          onDeleteConfirmCancel();
+        }
+      }, 3000);
+    } else {
+      // Reset animation values
+      deleteConfirmOpacity.value = 1;
+      deleteConfirmScale.value = 1;
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+        deleteTimeoutRef.current = null;
+      }
+    }
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, [isDeleteConfirming, onDeleteConfirmCancel]);
+
+  // Handle delete button press
+  const handleDeletePress = () => {
+    if (isDeleteConfirming) {
+      // Second tap - actually delete
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+        deleteTimeoutRef.current = null;
+      }
+      if (onDelete) {
+        onDelete();
+      }
+    } else {
+      // First tap - enter confirm state
+      if (onDeleteConfirmStart) {
+        onDeleteConfirmStart();
+      }
     }
   };
+
+  // Animated style for delete confirm text
+  const deleteConfirmStyle = useAnimatedStyle(() => {
+    return {
+      opacity: deleteConfirmOpacity.value,
+      transform: [{ scale: deleteConfirmScale.value }],
+    };
+  });
 
   // Handle collapse - save the edited lines back to entry
   const handleCollapse = () => {
@@ -264,30 +335,16 @@ export function WorkoutCard({
   // Collapsed view
   if (cardState === 'collapsed') {
     const cardContent = (
-      <View style={[styles.card, isSelected && styles.cardSelected]}>
+      <Pressable
+        onPress={() => {
+          // Cancel delete confirmation if tapping outside the delete button
+          if (isDeleteConfirming && onDeleteConfirmCancel) {
+            onDeleteConfirmCancel();
+          }
+        }}
+        style={[styles.card, isSelected && styles.cardSelected]}
+      >
         <View style={styles.collapsedContent}>
-          {/* Reorder handle - positioned on the left side */}
-          {!combineMode && (onMoveUp || onMoveDown) && (
-            <View style={styles.reorderHandle}>
-              <TouchableOpacity
-                onPress={onMoveUp}
-                disabled={!canMoveUp}
-                style={[styles.reorderHandleButton, !canMoveUp && styles.reorderButtonDisabled]}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="arrow-up" size={16} color={canMoveUp ? "#888888" : "#444444"} />
-              </TouchableOpacity>
-              <View style={styles.reorderHandleDivider} />
-              <TouchableOpacity
-                onPress={onMoveDown}
-                disabled={!canMoveDown}
-                style={[styles.reorderHandleButton, !canMoveDown && styles.reorderButtonDisabled]}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="arrow-down" size={16} color={canMoveDown ? "#888888" : "#444444"} />
-              </TouchableOpacity>
-            </View>
-          )}
           <View style={styles.collapsedMainContent}>
             <View style={styles.collapsedHeader}>
             {/* Selection checkbox - only show when in combine mode */}
@@ -311,7 +368,7 @@ export function WorkoutCard({
                   if (line.kind === 'header') {
                     return (
                       <Text key={line.id} style={styles.exerciseName}>
-                        {line.text}
+                        {toTitleCase(line.text)}
                       </Text>
                     );
                   } else {
@@ -327,7 +384,7 @@ export function WorkoutCard({
               // Legacy rendering fallback
               <View style={styles.exerciseNameContainer}>
                 <Text style={styles.exerciseName}>
-                  {exerciseName}
+                  {toTitleCase(exerciseName)}
                 </Text>
               </View>
             )}
@@ -340,42 +397,78 @@ export function WorkoutCard({
                 >
                   <Ionicons name="pencil" size={18} color="#888888" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleDelete}
-                  style={styles.actionButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#888888" />
-                </TouchableOpacity>
               </View>
             )}
           </View>
-          {entry.lines ? null : (
-            // Legacy rendering fallback - only show if no lines
-            displaySets.length > 0 && (
-              <View style={styles.setsContainer}>
-                {displaySets.map((set, index) => (
-                  <Text key={index} style={styles.setLine}>
-                    {set}
-                  </Text>
-                ))}
-              </View>
-            )
+          </View>
+          {/* Reorder handle - positioned on the right side */}
+          {!combineMode && (onMoveUp || onMoveDown) && (
+            <View style={styles.reorderHandle}>
+              <TouchableOpacity
+                onPress={onMoveUp}
+                disabled={!canMoveUp}
+                style={[styles.reorderHandleButton, !canMoveUp && styles.reorderButtonDisabled]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="arrow-up" size={16} color={canMoveUp ? "#888888" : "#444444"} />
+              </TouchableOpacity>
+              <View style={styles.reorderHandleDivider} />
+              <TouchableOpacity
+                onPress={onMoveDown}
+                disabled={!canMoveDown}
+                style={[styles.reorderHandleButton, !canMoveDown && styles.reorderButtonDisabled]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="arrow-down" size={16} color={canMoveDown ? "#888888" : "#444444"} />
+              </TouchableOpacity>
+            </View>
           )}
+        </View>
+        {/* Bottom section with timestamp on left, trash icon on right */}
+        <View style={styles.cardBottom}>
           <View style={styles.collapsedMeta}>
             <Text style={styles.timestamp}>{timestamp}</Text>
           </View>
-          {!entry.lines && entry.rawTranscription && (
-            <View style={styles.rawTranscriptionContainer}>
-              <View style={styles.rawTranscriptionIndicator} />
-              <Text style={styles.rawTranscription}>
-                {entry.rawTranscription}
-              </Text>
-            </View>
+          {!combineMode && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation(); // Prevent card press from firing
+                handleDeletePress();
+              }}
+              style={styles.actionButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {isDeleteConfirming ? (
+                <Animated.View style={deleteConfirmStyle}>
+                  <Text style={styles.deleteConfirmText}>DELETE ?</Text>
+                </Animated.View>
+              ) : (
+                <Ionicons name="trash-outline" size={18} color="#888888" />
+              )}
+            </TouchableOpacity>
           )}
-          </View>
         </View>
-      </View>
+        {!entry.lines && entry.rawTranscription && (
+          <View style={styles.rawTranscriptionContainer}>
+            <View style={styles.rawTranscriptionIndicator} />
+            <Text style={styles.rawTranscription}>
+              {entry.rawTranscription}
+            </Text>
+          </View>
+        )}
+        {entry.lines ? null : (
+          // Legacy rendering fallback - only show if no lines
+          displaySets.length > 0 && (
+            <View style={styles.setsContainer}>
+              {displaySets.map((set, index) => (
+                <Text key={index} style={styles.setLine}>
+                  {set}
+                </Text>
+              ))}
+            </View>
+          )
+        )}
+      </Pressable>
     );
 
     // Wrap in Pressable only for combine mode selection
@@ -396,14 +489,31 @@ export function WorkoutCard({
 
   // Expanded view
   return (
-    <View style={[styles.card, styles.expandedCard]}>
+    <Pressable
+      onPress={() => {
+        // Cancel delete confirmation if tapping outside the delete button
+        if (isDeleteConfirming && onDeleteConfirmCancel) {
+          onDeleteConfirmCancel();
+        }
+      }}
+      style={[styles.card, styles.expandedCard]}
+    >
       {/* Header with collapse and delete buttons */}
       <View style={styles.expandedHeader}>
         <TouchableOpacity onPress={handleCollapse} style={styles.collapseButton}>
           <Ionicons name="chevron-up" size={20} color="#888888" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
-          <Ionicons name="trash-outline" size={18} color="#888888" />
+        <TouchableOpacity
+          onPress={handleDeletePress}
+          style={styles.deleteButton}
+        >
+          {isDeleteConfirming ? (
+            <Animated.View style={deleteConfirmStyle}>
+              <Text style={styles.deleteConfirmText}>DELETE ?</Text>
+            </Animated.View>
+          ) : (
+            <Ionicons name="trash-outline" size={18} color="#888888" />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -488,45 +598,40 @@ export function WorkoutCard({
           </ScrollView>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(40, 40, 40, 0.75)', // Dark charcoal with 75% opacity for glass effect
+    backgroundColor: '#141414', // Premium dark surface color
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    // Enhanced 3D shadow effect - deeper and more pronounced for stronger depth
-    shadowColor: '#000000',
+    marginBottom: 12, // Spacing between cards
+    // Subtle edge instead of strong border
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 0, 0.10)', // Very subtle amber edge
+    // Subtle elevation for layered feel
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 16, // Increased for more dramatic depth
+      height: 2,
     },
-    shadowOpacity: 0.8, // Stronger shadow for more contrast
-    shadowRadius: 40, // Larger, softer shadow for more dramatic effect
-    elevation: 20, // Higher elevation for Android
-    // Enhanced inner highlights for stronger 3D glass effect
-    borderTopWidth: 2, // Thicker top border for more pronounced highlight
-    borderTopColor: 'rgba(255, 255, 255, 0.4)', // Brighter top highlight
-    borderLeftWidth: 2, // Thicker left border
-    borderLeftColor: 'rgba(255, 255, 255, 0.3)', // Brighter left highlight
-    // Enhanced bottom shadow border for depth
-    borderBottomWidth: 2,
-    borderBottomColor: 'rgba(0, 0, 0, 0.5)', // Darker bottom edge for more depth
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(0, 0, 0, 0.3)', // Subtle right shadow
-    // Overlay effect for translucency
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 3, // Android elevation
     overflow: 'hidden',
   },
   cardSelected: {
-    borderColor: '#FF4444',
+    // Strong yellow outline only when selected/active
+    borderColor: '#FFBF00',
     borderWidth: 2,
-    backgroundColor: '#1A0A0A',
+    backgroundColor: '#141414',
   },
   expandedCard: {
-    marginBottom: 12,
+    marginBottom: 0, // Remove margin since outline wrapper handles spacing
+    // When expanded/editing, show slightly more visible border
+    borderColor: 'rgba(255, 200, 0, 0.15)', // Slightly more visible when editing
   },
   collapsedContent: {
     flex: 1,
@@ -555,7 +660,6 @@ const styles = StyleSheet.create({
     fontSize: 20, // Larger for more prominence
     fontWeight: '800', // Extra bold for stronger presence
     color: '#FFBF00', // Amber Yellow
-    textTransform: 'uppercase',
     flexWrap: 'wrap',
     letterSpacing: 0.5, // Slight letter spacing for better readability
   },
@@ -586,10 +690,10 @@ const styles = StyleSheet.create({
   reorderHandle: {
     flexDirection: 'column',
     alignItems: 'center',
-    marginRight: 12,
-    paddingRight: 8,
-    borderRightWidth: 1,
-    borderRightColor: '#2A2A2A',
+    marginLeft: 12,
+    paddingLeft: 8,
+    borderLeftWidth: 1,
+    borderLeftColor: '#2A2A2A',
   },
   reorderHandleButton: {
     padding: 4,
@@ -602,6 +706,15 @@ const styles = StyleSheet.create({
   },
   reorderButtonDisabled: {
     opacity: 0.3,
+  },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   collapsedMeta: {
     flexDirection: 'row',
@@ -735,6 +848,12 @@ const styles = StyleSheet.create({
   addLineText: {
     color: '#888888',
     fontSize: 14,
+  },
+  deleteConfirmText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFBF00', // Amber accent color matching headers and buttons
+    letterSpacing: 0.5,
   },
 });
 
