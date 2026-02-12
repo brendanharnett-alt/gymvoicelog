@@ -31,6 +31,9 @@ const HOLD_TO_START_MS = 250;
 // Hard safety stop: prevents runaway recordings even if events get missed.
 const MAX_RECORDING_MS = 90_000; // 90s (change to 120_000 if you want 2 minutes)
 
+// Polling interval: how often to check if button is still being pressed
+const POLLING_INTERVAL_MS = 100; // Check every 100ms if button is still pressed
+
 export function RecordButton({ onRecordingComplete, onRecordingStateChange }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -50,6 +53,7 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
   // Timers
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearHoldTimer = () => {
     if (holdTimerRef.current) {
@@ -63,6 +67,25 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
     if (maxTimerRef.current) {
       clearTimeout(maxTimerRef.current);
       maxTimerRef.current = null;
+    }
+  };
+
+  const startPolling = () => {
+    // Clear any existing polling
+    stopPolling();
+    
+    pollingIntervalRef.current = setInterval(() => {
+      // If recording but not pressing, stop recording
+      if (isRecordingRef.current && !isPressingRef.current) {
+        handleStopRecording().catch(() => {});
+      }
+    }, POLLING_INTERVAL_MS);
+  };
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
   };
 
@@ -88,6 +111,7 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
     return () => {
       clearHoldTimer();
       clearMaxTimer();
+      stopPolling(); // Stop polling on unmount
 
       isPressingRef.current = false;
       pendingStartRef.current = false;
@@ -154,9 +178,15 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
           handleStopRecording().catch(() => {});
         }
       }, MAX_RECORDING_MS);
+
+      // Ensure polling is still active while recording
+      if (!pollingIntervalRef.current) {
+        startPolling();
+      }
     } catch (err) {
       console.error('Failed to start recording', err);
       // If start failed, reset UI state
+      stopPolling(); // Stop polling on error
       isRecordingRef.current = false;
       setIsRecording(false);
       if (onRecordingStateChange) {
@@ -171,6 +201,9 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
   };
 
   const handleStopRecording = async () => {
+    // Stop polling immediately
+    stopPolling();
+    
     // Stop if recording is active (even if transitioning)
     if (!isRecordingRef.current) {
       return;
@@ -256,12 +289,13 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
     if (isRecordingRef.current) return;
 
     isPressingRef.current = true;
+    startPolling(); // Start polling when press begins
 
     // Instant feedback (no recording yet)
     scale.value = withSpring(1.05);
 
     // Schedule start after hold threshold.
-    // This is the “tap can’t start recording” guarantee.
+    // This is the "tap can't start recording" guarantee.
     clearHoldTimer();
     pendingStartRef.current = true;
 
@@ -277,6 +311,7 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
   const handlePressOut = async () => {
     // Finger is up => cancel any pending start
     isPressingRef.current = false;
+    stopPolling(); // Stop polling when press ends
     clearHoldTimer();
 
     // If not recording, just reset visuals
