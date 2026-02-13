@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -178,6 +178,16 @@ export default function App() {
     setIsEditDialogOpen(true);
   };
 
+  // Memoize delete confirmation callbacks to prevent unnecessary re-renders
+  // This fixes flickering of "DELETE ?" text during recording
+  const handleDeleteConfirmStart = useCallback((cardId: string) => {
+    setDeleteConfirmingCardId(cardId);
+  }, []);
+
+  const handleDeleteConfirmCancel = useCallback(() => {
+    setDeleteConfirmingCardId(null);
+  }, []);
+
   const handleSaveEntry = (id: string, updates: Partial<WorkoutEntry>) => {
     updateEntry(id, updates);
     setIsEditDialogOpen(false);
@@ -316,8 +326,8 @@ export default function App() {
             isSummaryInputFocused={isSummaryInputFocused}
             onReorderEntries={reorderEntries}
             deleteConfirmingCardId={deleteConfirmingCardId}
-            onDeleteConfirmStart={(cardId) => setDeleteConfirmingCardId(cardId)}
-            onDeleteConfirmCancel={() => setDeleteConfirmingCardId(null)}
+            onDeleteConfirmStart={handleDeleteConfirmStart}
+            onDeleteConfirmCancel={handleDeleteConfirmCancel}
           />
         </View>
       </SwipeContainer>
