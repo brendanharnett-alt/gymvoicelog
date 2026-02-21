@@ -337,6 +337,11 @@ export function WorkoutCard({
     const cardContent = (
       <Pressable
         onPress={() => {
+          // In combine mode, toggle selection when tapping anywhere on the card
+          if (combineMode) {
+            handleSelectionToggle();
+            return;
+          }
           // Cancel delete confirmation if tapping outside the delete button
           if (isDeleteConfirming && onDeleteConfirmCancel) {
             onDeleteConfirmCancel();
@@ -357,7 +362,7 @@ export function WorkoutCard({
                 <Ionicons
                   name={isSelected ? "checkbox" : "checkbox-outline"}
                   size={24}
-                  color={isSelected ? "#FF4444" : "#888"}
+                  color={isSelected ? "#FFBF00" : "#888"}
                 />
               </TouchableOpacity>
             )}

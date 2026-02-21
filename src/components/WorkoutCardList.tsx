@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   combineActionButton: {
-    backgroundColor: '#FF4444',
+    backgroundColor: '#FFBF00',
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   combineActionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   actionButtonsContainer: {
     flexDirection: 'row',
