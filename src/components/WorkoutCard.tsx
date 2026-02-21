@@ -628,8 +628,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardSelected: {
-    // Strong yellow outline only when selected/active
-    borderColor: '#FFBF00',
+    // Soft amber outline with reduced opacity for selected/active
+    borderColor: 'rgba(255, 191, 0, 0.55)', // Amber at 55% opacity
     borderWidth: 2,
     backgroundColor: '#141414',
   },

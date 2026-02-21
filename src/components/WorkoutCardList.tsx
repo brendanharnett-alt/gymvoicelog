@@ -187,7 +187,7 @@ export function WorkoutCardList({
             style={styles.combineCancelButton}
             activeOpacity={0.7}
           >
-            <Ionicons name="close" size={20} color="#FFFFFF" />
+            <Ionicons name="close" size={20} color="#888888" />
             <Text style={styles.combineCancelText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.combineTitle}>Combine cards</Text>
@@ -244,7 +244,10 @@ export function WorkoutCardList({
           data={sortedEntries}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            combineMode && { paddingTop: 12 } // Add small spacing when combine mode is active
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
@@ -271,11 +274,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: '#1A1A1A', // Dark surface color matching top bar
+    borderWidth: 1,
+    borderColor: '#2A2A2A', // Subtle divider color
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   combineCancelText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: '#888888', // Secondary text color
   },
   combineTitle: {
     fontSize: 18,
@@ -297,8 +306,8 @@ const styles = StyleSheet.create({
     width: 60,
   },
   combineActionText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
     color: '#000000',
   },
   actionButtonsContainer: {
