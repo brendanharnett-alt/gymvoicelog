@@ -357,7 +357,7 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
             <Ionicons
               name={isRecording ? 'mic' : 'mic-outline'}
               size={42}
-              color={isTranscribing ? '#666666' : '#FFBF00'}
+              color={isTranscribing ? '#666666' : isRecording ? '#000000' : '#FFBF00'}
             />
           </Pressable>
 
@@ -404,8 +404,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   buttonRecording: {
-    backgroundColor: '#FF4444',
-    borderColor: '#FF4444',
+    backgroundColor: '#FFBF00', // Solid amber fill
+    borderWidth: 0, // Remove border/outline
+    // Subtle glow effect while recording
+    shadowColor: '#FFBF00',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -443,7 +449,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 2,
-    borderColor: '#FF4444',
+    borderColor: '#FFBF00', // Amber to match recording state
   },
   label: {
     color: '#CCCCCC',
