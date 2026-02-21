@@ -162,19 +162,20 @@ export function useWorkoutStore() {
   }, [currentDate, triggerSave]);
 
   const updateEntry = useCallback((id: string, updates: Partial<WorkoutEntry>) => {
-    const key = getDateKey(currentDate);
-    const workout = workoutsByDate.get(key);
-    
-    if (workout) {
+    let found = false;
+
+    workoutsByDate.forEach((workout, key) => {
       const entry = workout.entries.find(e => e.id === id);
       if (entry) {
         Object.assign(entry, updates);
         workoutsByDate.set(key, workout);
-        setCurrentDate(new Date(currentDate));
-        
-        // Save to AsyncStorage
-        triggerSave();
+        found = true;
       }
+    });
+
+    if (found) {
+      setCurrentDate(new Date(currentDate));
+      triggerSave();
     }
   }, [currentDate, triggerSave]);
 
