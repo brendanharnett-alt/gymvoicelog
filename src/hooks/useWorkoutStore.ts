@@ -287,6 +287,16 @@ export function useWorkoutStore() {
       return entryTime.getTime() < earliestTime.getTime() ? entryTime : earliest;
     }, selectedEntries[0].timestamp);
 
+    // Find the earliest selected entry to determine insertion position
+    const earliestEntry = selectedEntries.reduce((earliest, entry) => {
+      const entryTime = entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp);
+      const earliestTime = earliest.timestamp instanceof Date ? earliest.timestamp : new Date(earliest.timestamp);
+      return entryTime.getTime() < earliestTime.getTime() ? entry : earliest;
+    }, selectedEntries[0]);
+
+    // Find the index of the earliest selected entry BEFORE deletion
+    const earliestIndex = workout.entries.findIndex(e => e.id === earliestEntry.id);
+
     // Generate title from header lines (or first line if no headers) for backward compatibility
     const headerLines = combinedLines.filter(line => line.kind === 'header');
     const titleText = headerLines.length > 0
@@ -310,10 +320,26 @@ export function useWorkoutStore() {
 
     // Delete original entries
     const idsToDelete = new Set(selectedEntries.map(e => e.id));
+    
+    // Count how many entries before the earliest index will be deleted
+    // This helps us adjust the insertion index after deletion
+    let deletedBeforeEarliest = 0;
+    if (earliestIndex >= 0) {
+      for (let i = 0; i < earliestIndex; i++) {
+        if (idsToDelete.has(workout.entries[i].id)) {
+          deletedBeforeEarliest++;
+        }
+      }
+    }
+    
     workout.entries = workout.entries.filter(e => !idsToDelete.has(e.id));
 
-    // Add combined entry
-    workout.entries.push(combinedEntry);
+    // Insert combined entry at the position of the earliest selected entry
+    // Adjust the index by subtracting the number of entries deleted before it
+    const insertIndex = earliestIndex >= 0 
+      ? Math.max(0, earliestIndex - deletedBeforeEarliest)
+      : workout.entries.length;
+    workout.entries.splice(insertIndex, 0, combinedEntry);
     workoutsByDate.set(key, workout);
 
     // Clear selection
