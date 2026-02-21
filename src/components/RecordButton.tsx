@@ -292,7 +292,11 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
     startPolling(); // Start polling when press begins
 
     // Instant feedback (no recording yet)
-    scale.value = withSpring(1.05);
+    scale.value = withSpring(1.16, {
+      damping: 16,
+      stiffness: 260,
+      mass: 0.9,
+    });
 
     // Schedule start after hold threshold.
     // This is the "tap can't start recording" guarantee.
