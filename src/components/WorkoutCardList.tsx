@@ -233,10 +233,10 @@ export function WorkoutCardList({
       {/* Card list */}
       {sortedEntries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="fitness-outline" size={48} color="#444" />
+          <Ionicons name="barbell-outline" size={48} color="#444" />
           <Text style={styles.emptyText}>No workouts yet</Text>
           <Text style={styles.emptySubtext}>
-            Tap "+ Add" to create your first exercise card
+            Hold record button to record an exercise or hit "+ Add Card" to add an exercise manually.
           </Text>
         </View>
       ) : (

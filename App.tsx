@@ -151,7 +151,15 @@ export default function App() {
     // #endregion
     
     // In production, you'd use a toast library like react-native-toast-message
-    console.log('Workout logged:', { summary: result.summary, transcript: result.transcript });
+    console.log('=== WORKOUT LOGGED ===');
+    console.log('Summary from Backend:', result.summary || '(none)');
+    console.log('Transcript from Backend:', result.transcript);
+    console.log('Final Display Text (stored as title):', result.summary || result.transcript);
+    console.log('Processed Lines:', lines.map(l => ({ kind: l.kind, text: l.text })));
+    console.log('Lines Count:', lines.length);
+    console.log('Header Lines:', lines.filter(l => l.kind === 'header').map(l => l.text));
+    console.log('Body Lines:', lines.filter(l => l.kind === 'body').map(l => l.text));
+    console.log('========================');
   };
   
   const handleRecordingTargetChange = (selectedDate: Date) => {
