@@ -18,6 +18,7 @@ import { RecordButton } from './src/components/RecordButton';
 import { EditWorkoutDialog } from './src/components/EditWorkoutDialog';
 import { Calendar } from './src/components/Calendar';
 import { MonthYearPicker } from './src/components/MonthYearPicker';
+import { VoiceTipsBottomSheet } from './src/components/VoiceTipsBottomSheet';
 import { WorkoutEntry } from './src/types/workout';
 import { startOfMonth, normalizeDate, getDateLabel } from './src/utils/dateUtils';
 import { textToBodyLines, summaryToTypedLines } from './src/utils/lines';
@@ -56,6 +57,7 @@ export default function App() {
   const [combineMode, setCombineMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [deleteConfirmingCardId, setDeleteConfirmingCardId] = useState<string | null>(null);
+  const [isVoiceTipsOpen, setIsVoiceTipsOpen] = useState(false);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -361,6 +363,14 @@ export default function App() {
             onRecordingComplete={handleRecordingComplete}
             onRecordingStateChange={setIsRecording}
           />
+          <TouchableOpacity
+            style={styles.helpButton}
+            onPress={() => setIsVoiceTipsOpen(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="help-circle-outline" size={28} color="#666666" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -450,6 +460,12 @@ export default function App() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Voice Tips Bottom Sheet */}
+      <VoiceTipsBottomSheet
+        visible={isVoiceTipsOpen}
+        onClose={() => setIsVoiceTipsOpen(false)}
+      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -480,6 +496,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     alignItems: 'center',
     backgroundColor: 'transparent',
+  },
+  helpButton: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recordingTargetChip: {
     flexDirection: 'row',
