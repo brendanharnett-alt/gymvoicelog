@@ -149,7 +149,7 @@ export function useWorkoutStore() {
       date: new Date(entryDate),
     };
     
-    workout.entries.push(newEntry);
+    workout.entries.unshift(newEntry);
     workoutsByDate.set(key, workout);
     
     // Trigger re-render by updating current date reference
