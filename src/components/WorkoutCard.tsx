@@ -313,7 +313,23 @@ export function WorkoutCard({
   const timestampDate = entry.timestamp instanceof Date 
     ? entry.timestamp 
     : new Date(entry.timestamp);
-  const timestamp = timestampDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Format date as "MMM DD, YYYY"
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[timestampDate.getMonth()];
+  const day = timestampDate.getDate().toString().padStart(2, '0');
+  const year = timestampDate.getFullYear();
+  const dateString = `${month} ${day}, ${year}`;
+  
+  // Format time as "H:MM AM/PM" (hour not zero-padded)
+  const hours = timestampDate.getHours();
+  const minutes = timestampDate.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12; // Convert to 12-hour format, 0 becomes 12
+  const timeString = `${displayHours}:${minutes} ${ampm}`;
+  
+  // Combine date and time with middle dot separator: "MMM DD, YYYY • H:MM AM/PM"
+  const timestamp = `${dateString} • ${timeString}`;
 
   // Parse multiple sets from title/text if it contains newlines
   // Format: "Exercise Name\n225 x 6\n245 x 6" -> extract sets

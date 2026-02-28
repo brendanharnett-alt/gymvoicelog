@@ -42,6 +42,7 @@ export default function App() {
     clearSelection,
     getSelectedCards,
     combineSelectedCards,
+    getDatesWithWorkouts,
   } = useWorkoutStore();
 
   const [editingEntry, setEditingEntry] = useState<WorkoutEntry | null>(null);
@@ -387,6 +388,7 @@ export default function App() {
                 onMonthChange={setCalendarMonth}
                 onSelect={handleDateSelect}
                 onMonthYearClick={() => setCalendarView('months')}
+                datesWithWorkouts={getDatesWithWorkouts()}
               />
             ) : (
               <MonthYearPicker

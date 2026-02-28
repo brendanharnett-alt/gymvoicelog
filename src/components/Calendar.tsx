@@ -8,9 +8,10 @@ interface CalendarProps {
   onMonthChange: (date: Date) => void;
   onSelect: (date: Date) => void;
   onMonthYearClick?: () => void;
+  datesWithWorkouts?: Set<string>; // Set of date keys (YYYY-MM-DD) that have workouts
 }
 
-export function Calendar({ selectedDate, month, onMonthChange, onSelect, onMonthYearClick }: CalendarProps) {
+export function Calendar({ selectedDate, month, onMonthChange, onSelect, onMonthYearClick, datesWithWorkouts }: CalendarProps) {
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
@@ -40,6 +41,10 @@ export function Calendar({ selectedDate, month, onMonthChange, onSelect, onMonth
       const isToday = date.getTime() === today.getTime();
       const isFuture = date.getTime() > today.getTime();
       
+      // Check if this date has workouts
+      const dateKey = date.toISOString().split('T')[0];
+      const hasWorkouts = datesWithWorkouts?.has(dateKey) || false;
+      
       days.push(
         <TouchableOpacity
           key={day}
@@ -56,6 +61,7 @@ export function Calendar({ selectedDate, month, onMonthChange, onSelect, onMonth
             styles.dayText, 
             isSelected && styles.dayTextSelected,
             isFuture && styles.dayTextDisabled,
+            hasWorkouts && !isSelected && styles.dayTextWithWorkouts,
           ]}>
             {day}
           </Text>
@@ -157,23 +163,27 @@ const styles = StyleSheet.create({
     color: '#CCCCCC',
   },
   daySelected: {
-    backgroundColor: '#FF4444',
+    backgroundColor: '#FFBF00',
     borderRadius: 8,
   },
   dayToday: {
     borderWidth: 1,
-    borderColor: '#FF4444',
+    borderColor: '#FFBF00',
     borderRadius: 8,
   },
   dayDisabled: {
     opacity: 0.3,
   },
   dayTextSelected: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '600',
   },
   dayTextDisabled: {
     color: '#666666',
+  },
+  dayTextWithWorkouts: {
+    color: '#FFBF00',
+    fontWeight: '700',
   },
 });
 

@@ -352,6 +352,17 @@ export function useWorkoutStore() {
     return combinedEntry;
   }, [currentDate, getSelectedCards, triggerSave]);
 
+  // Get all dates that have workouts (returns Set of date keys in YYYY-MM-DD format)
+  const getDatesWithWorkouts = useCallback((): Set<string> => {
+    const dates = new Set<string>();
+    workoutsByDate.forEach((workout, key) => {
+      if (workout.entries.length > 0) {
+        dates.add(key);
+      }
+    });
+    return dates;
+  }, []);
+
   return {
     currentDate,
     currentDayWorkout,
@@ -369,6 +380,8 @@ export function useWorkoutStore() {
     clearSelection,
     getSelectedCards,
     combineSelectedCards,
+    // Get dates with workouts
+    getDatesWithWorkouts,
   };
 }
 
