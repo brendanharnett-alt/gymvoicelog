@@ -19,6 +19,8 @@ interface RecordButtonProps {
     extractedLifts?: any[] | null;
   }) => void;
   onRecordingStateChange?: (isRecording: boolean) => void;
+  onRecordingStart?: () => string | undefined; // Returns card ID if card was created
+  cardId?: string; // Optional card ID to include in backend request
 }
 
 const BACKEND_URL = 'https://gymvoicelog-stt-production.up.railway.app/transcribe';
@@ -34,9 +36,10 @@ const MAX_RECORDING_MS = 90_000; // 90s (change to 120_000 if you want 2 minutes
 // Polling interval: how often to check if button is still being pressed
 const POLLING_INTERVAL_MS = 100; // Check every 100ms if button is still pressed
 
-export function RecordButton({ onRecordingComplete, onRecordingStateChange }: RecordButtonProps) {
+export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRecordingStart, cardId }: RecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [currentCardId, setCurrentCardId] = useState<string | undefined>(cardId);
 
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
@@ -158,6 +161,15 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
       recordingRef.current = recording;
       isRecordingRef.current = true;
       setIsRecording(true);
+      
+      // Create card and get ID when recording starts
+      if (onRecordingStart) {
+        const newCardId = onRecordingStart();
+        if (newCardId) {
+          setCurrentCardId(newCardId);
+        }
+      }
+      
       if (onRecordingStateChange) {
         onRecordingStateChange(true);
       }
@@ -244,6 +256,12 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange }: Re
             type: 'audio/m4a',
             name: 'recording.m4a',
           } as any);
+          
+          // Include card_id if available
+          const cardIdToSend = currentCardId || cardId;
+          if (cardIdToSend) {
+            formData.append('card_id', cardIdToSend);
+          }
 
           const response = await fetch(BACKEND_URL, {
             method: 'POST',

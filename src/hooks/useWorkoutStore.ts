@@ -149,6 +149,8 @@ export function useWorkoutStore() {
       date: new Date(entryDate),
     };
     
+    console.log("FRONTEND CARD ID:", newEntry.id);
+    
     workout.entries.unshift(newEntry);
     workoutsByDate.set(key, workout);
     

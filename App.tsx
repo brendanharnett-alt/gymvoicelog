@@ -58,6 +58,7 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [deleteConfirmingCardId, setDeleteConfirmingCardId] = useState<string | null>(null);
   const [isVoiceTipsOpen, setIsVoiceTipsOpen] = useState(false);
+  const [pendingRecordingCardId, setPendingRecordingCardId] = useState<string | null>(null);
   
   // recordingTargetDate defaults to Today, separate from viewedDate (currentDate)
   const [recordingTargetDate, setRecordingTargetDate] = useState<Date>(() => {
@@ -107,43 +108,54 @@ export default function App() {
     // #endregion
   }, [currentDate, today]);
 
+  // Handle recording start - create card immediately and return its ID
+  const handleRecordingStart = useCallback((): string | undefined => {
+    const targetDate = normalizeDate(recordingTargetDate);
+    const displayText = ''; // Empty initially, will be updated when recording completes
+    const newEntry = addEntry(displayText, targetDate);
+    setPendingRecordingCardId(newEntry.id);
+    return newEntry.id;
+  }, [recordingTargetDate, addEntry]);
+
   const handleRecordingComplete = (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => {
     // #region agent log
     fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:94',message:'handleRecordingComplete called',data:{currentDate:currentDate?.getTime(),recordingTargetDate:recordingTargetDate?.getTime(),isViewingToday},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
     // #endregion
+    
+    // Use the card ID that was created when recording started
+    const cardIdToUpdate = pendingRecordingCardId;
+    if (!cardIdToUpdate) {
+      console.error('No pending card ID found for recording');
+      return;
+    }
+    
     // Use summary if available, otherwise fall back to transcript
     const displayText = result.summary || result.transcript;
     
-    // Use recordingTargetDate (defaults to Today, can be overridden to viewed date)
-    // Normalize to ensure consistent date handling
-    const targetDate = normalizeDate(recordingTargetDate);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:100',message:'Before addEntry',data:{targetDate:targetDate.getTime()},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
-    
-    // Create entry with summary as title/description and transcript as rawTranscription
-    const newEntry = addEntry(displayText, targetDate);
-    
-    // Update with structured data
+    // Update the existing entry with structured data
     // Compute typed lines
     const lines = result.summary 
       ? summaryToTypedLines(result.summary)
       : textToBodyLines(result.transcript);
     
     if (result.summary) {
-      updateEntry(newEntry.id, {
+      updateEntry(cardIdToUpdate, {
+        text: displayText, // Update legacy text field
         title: result.summary,
         rawTranscription: result.transcript,
         lines,
       });
     } else {
       // Fallback: if no summary, store transcript as rawTranscription
-      updateEntry(newEntry.id, {
+      updateEntry(cardIdToUpdate, {
+        text: displayText, // Update legacy text field
         rawTranscription: result.transcript,
         lines,
       });
     }
+    
+    // Clear pending card ID
+    setPendingRecordingCardId(null);
     
     // REMOVED: Reset recordingTargetDate back to Today after recording is saved
     // The target should persist on the current page until user navigates away
@@ -362,6 +374,8 @@ export default function App() {
           <RecordButton 
             onRecordingComplete={handleRecordingComplete}
             onRecordingStateChange={setIsRecording}
+            onRecordingStart={handleRecordingStart}
+            cardId={pendingRecordingCardId || undefined}
           />
           <TouchableOpacity
             style={styles.helpButton}
