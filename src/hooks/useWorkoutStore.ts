@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { v4 as uuidv4 } from 'uuid';
 import { WorkoutEntry, DayWorkout, CardLine } from '../types/workout';
 
 const STORAGE_KEY = 'GYMVOICELOG_CARDS';
@@ -143,7 +144,7 @@ export function useWorkoutStore() {
     };
     
     const newEntry: WorkoutEntry = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: uuidv4(),
       text,
       timestamp: new Date(),
       date: new Date(entryDate),
