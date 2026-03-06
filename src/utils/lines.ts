@@ -2,15 +2,14 @@ import { CardLine, LineKind } from '../types/workout';
 
 /**
  * Generates a unique ID for a line
- * Uses crypto.randomUUID() if available, otherwise falls back to a simple generator
+ * Uses UUID v4 format generator
  */
 function generateLineId(): string {
-  // Try crypto.randomUUID() first (available in modern environments)
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  // Fallback: simple unique ID generator
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 /**

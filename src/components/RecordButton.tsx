@@ -41,6 +41,13 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [currentCardId, setCurrentCardId] = useState<string | undefined>(cardId);
 
+  // Sync cardId prop with currentCardId state
+  useEffect(() => {
+    if (cardId) {
+      setCurrentCardId(cardId);
+    }
+  }, [cardId]);
+
   const scale = useSharedValue(1);
   const pulseScale = useSharedValue(1);
 
@@ -143,6 +150,16 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
     isTransitioningRef.current = true;
 
     try {
+      // Stop and unload any existing recording before starting a new one
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          // ignore if already stopped
+        }
+        recordingRef.current = null;
+      }
+
       // Retry permissions/audio mode (safe even if already set)
       try {
         await Audio.requestPermissionsAsync();
@@ -197,7 +214,15 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
       }
     } catch (err) {
       console.error('Failed to start recording', err);
-      // If start failed, reset UI state
+      // If start failed, reset UI state and cleanup recording
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          // ignore if already stopped
+        }
+        recordingRef.current = null;
+      }
       stopPolling(); // Stop polling on error
       isRecordingRef.current = false;
       setIsRecording(false);
@@ -245,7 +270,9 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
         const uri = rec.getURI();
         recordingRef.current = null;
 
-        if (!uri) return;
+        if (!uri) {
+          return;
+        }
 
         setIsTranscribing(true);
 
@@ -259,8 +286,12 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
           
           // Include card_id if available
           const cardIdToSend = currentCardId || cardId;
+          console.log('Card ID check - currentCardId:', currentCardId, 'cardId prop:', cardId, 'cardIdToSend:', cardIdToSend);
           if (cardIdToSend) {
+            console.log('Sending card_id to backend:', cardIdToSend);
             formData.append('card_id', cardIdToSend);
+          } else {
+            console.warn('WARNING: No card_id available to send to backend!');
           }
 
           const response = await fetch(BACKEND_URL, {
@@ -288,6 +319,15 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
         }
       }
     } catch (err: any) {
+      // Ensure cleanup if stopAndUnloadAsync fails
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          // ignore if already stopped
+        }
+        recordingRef.current = null;
+      }
       const errorMessage = err?.message || String(err);
       // Gracefully ignore common "no valid audio data" failures
       if (

@@ -1,9 +1,17 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
 import { WorkoutEntry, DayWorkout, CardLine } from '../types/workout';
 
 const STORAGE_KEY = 'GYMVOICELOG_CARDS';
+
+// Generate UUID v4 format
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 
 // In-memory store
 const workoutsByDate = new Map<string, DayWorkout>();
@@ -144,7 +152,7 @@ export function useWorkoutStore() {
     };
     
     const newEntry: WorkoutEntry = {
-      id: uuidv4(),
+      id: generateUUID(),
       text,
       timestamp: new Date(),
       date: new Date(entryDate),
