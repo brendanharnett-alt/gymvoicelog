@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useWorkoutStore, generateUUID } from './src/hooks/useWorkoutStore';
+import { editCard } from './src/utils/cardApi';
 import { DateHeader } from './src/components/DateHeader';
 import { SwipeContainer } from './src/components/SwipeContainer';
 import { WorkoutCardList } from './src/components/WorkoutCardList';
@@ -213,6 +214,13 @@ export default function App() {
   }, []);
 
   const handleSaveEntry = (id: string, updates: Partial<WorkoutEntry>) => {
+    // Check if this is a voice-created card before updating
+    const entry = currentDayWorkout.entries.find(e => e.id === id);
+    if (entry?.rawTranscription) {
+      // Voice-created card - log edit event (fire-and-forget)
+      editCard(id, updates.text);
+    }
+    
     updateEntry(id, updates);
     setIsEditDialogOpen(false);
     setEditingEntry(null);

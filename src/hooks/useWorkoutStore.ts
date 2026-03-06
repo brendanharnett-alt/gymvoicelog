@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorkoutEntry, DayWorkout, CardLine } from '../types/workout';
+import { deleteCard, mergeCards } from '../utils/cardApi';
 
 const STORAGE_KEY = 'GYMVOICELOG_CARDS';
 
@@ -195,6 +196,13 @@ export function useWorkoutStore() {
     const workout = workoutsByDate.get(key);
     
     if (workout) {
+      // Find the entry before deleting to check if it's voice-created
+      const entry = workout.entries.find(e => e.id === id);
+      if (entry?.rawTranscription) {
+        // Voice-created card - log delete event (fire-and-forget)
+        deleteCard(id);
+      }
+      
       workout.entries = workout.entries.filter(e => e.id !== id);
       workoutsByDate.set(key, workout);
       setCurrentDate(new Date(currentDate));
@@ -328,6 +336,14 @@ export function useWorkoutStore() {
       timestamp: earliestTimestamp instanceof Date ? earliestTimestamp : new Date(earliestTimestamp),
       date: new Date(currentDate),
     };
+
+    // Log merge events for voice-created cards (fire-and-forget)
+    selectedEntries.forEach((entry) => {
+      if (entry.rawTranscription) {
+        // Voice-created card - log merge event
+        mergeCards(entry.id, combinedEntry.id);
+      }
+    });
 
     // Delete original entries
     const idsToDelete = new Set(selectedEntries.map(e => e.id));
