@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useWorkoutStore } from './src/hooks/useWorkoutStore';
+import { useWorkoutStore, generateUUID } from './src/hooks/useWorkoutStore';
 import { DateHeader } from './src/components/DateHeader';
 import { SwipeContainer } from './src/components/SwipeContainer';
 import { WorkoutCardList } from './src/components/WorkoutCardList';
@@ -108,47 +108,48 @@ export default function App() {
     // #endregion
   }, [currentDate, today]);
 
-  // Handle recording start - create card immediately and return its ID
+  // Handle recording start - generate UUID for backend but don't create card yet
   const handleRecordingStart = useCallback((): string | undefined => {
-    const targetDate = normalizeDate(recordingTargetDate);
-    const displayText = ''; // Empty initially, will be updated when recording completes
-    const newEntry = addEntry(displayText, targetDate);
-    setPendingRecordingCardId(newEntry.id);
-    return newEntry.id;
-  }, [recordingTargetDate, addEntry]);
+    // Generate UUID for backend, but don't create card yet
+    const cardId = generateUUID();
+    setPendingRecordingCardId(cardId);
+    return cardId;
+  }, []);
 
   const handleRecordingComplete = (result: { transcript: string; summary?: string | null; extractedLifts?: any[] | null }) => {
     // #region agent log
     fetch('http://127.0.0.1:7244/ingest/87f89b92-c2e3-4982-b728-8e485b4ca737',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:94',message:'handleRecordingComplete called',data:{currentDate:currentDate?.getTime(),recordingTargetDate:recordingTargetDate?.getTime(),isViewingToday},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
     // #endregion
     
-    // Use the card ID that was created when recording started
-    const cardIdToUpdate = pendingRecordingCardId;
-    if (!cardIdToUpdate) {
+    // Use the card ID that was generated when recording started
+    const cardIdToUse = pendingRecordingCardId;
+    if (!cardIdToUse) {
       console.error('No pending card ID found for recording');
       return;
     }
     
     // Use summary if available, otherwise fall back to transcript
     const displayText = result.summary || result.transcript;
+    const targetDate = normalizeDate(recordingTargetDate);
     
-    // Update the existing entry with structured data
+    // Create the card now with the pre-generated ID
+    const newEntry = addEntry(displayText, targetDate, cardIdToUse);
+    
+    // Update with structured data
     // Compute typed lines
     const lines = result.summary 
       ? summaryToTypedLines(result.summary)
       : textToBodyLines(result.transcript);
     
     if (result.summary) {
-      updateEntry(cardIdToUpdate, {
-        text: displayText, // Update legacy text field
+      updateEntry(newEntry.id, {
         title: result.summary,
         rawTranscription: result.transcript,
         lines,
       });
     } else {
       // Fallback: if no summary, store transcript as rawTranscription
-      updateEntry(cardIdToUpdate, {
-        text: displayText, // Update legacy text field
+      updateEntry(newEntry.id, {
         rawTranscription: result.transcript,
         lines,
       });

@@ -5,7 +5,7 @@ import { WorkoutEntry, DayWorkout, CardLine } from '../types/workout';
 const STORAGE_KEY = 'GYMVOICELOG_CARDS';
 
 // Generate UUID v4 format
-function generateUUID() {
+export function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0
     const v = c === 'x' ? r : (r & 0x3) | 0x8
@@ -140,7 +140,7 @@ export function useWorkoutStore() {
     return newWorkout;
   }, [currentDate]);
 
-  const addEntry = useCallback((text: string = '', targetDate?: Date) => {
+  const addEntry = useCallback((text: string = '', targetDate?: Date, id?: string) => {
     // If targetDate is provided, use it (for recordings, explicitly pass today)
     // Otherwise, use currentDate (viewed date) for manual entries
     // This separates recordingTargetDate from viewedDate
@@ -152,7 +152,7 @@ export function useWorkoutStore() {
     };
     
     const newEntry: WorkoutEntry = {
-      id: generateUUID(),
+      id: id || generateUUID(), // Use provided ID or generate new one
       text,
       timestamp: new Date(),
       date: new Date(entryDate),
