@@ -203,6 +203,18 @@ export default function App() {
     setIsEditDialogOpen(true);
   };
 
+  // Handle edit button click for API tracking
+  const handleEditEntryClick = useCallback((id: string) => {
+    // Find the entry to check if it's voice-created
+    const entry = currentDayWorkout.entries.find(e => e.id === id);
+    if (entry?.rawTranscription) {
+      // Voice-created card - log edit event (fire-and-forget)
+      console.log('Edit button clicked - Calling editCard API for voice-created card:', id);
+      const summaryText = entry.text || entry.title || undefined;
+      editCard(id, summaryText);
+    }
+  }, [currentDayWorkout]);
+
   // Memoize delete confirmation callbacks to prevent unnecessary re-renders
   // This fixes flickering of "DELETE ?" text during recording
   const handleDeleteConfirmStart = useCallback((cardId: string) => {
@@ -353,6 +365,7 @@ export default function App() {
             onAddEntry={() => addEntry('')}
             onUpdateEntry={updateEntry}
             onDeleteEntry={handleDeleteEntry}
+            onEditEntry={handleEditEntryClick}
             onSummaryFocusChange={setIsSummaryInputFocused}
             selectedCardIds={selectedCardIds}
             onSelectCard={selectCard}

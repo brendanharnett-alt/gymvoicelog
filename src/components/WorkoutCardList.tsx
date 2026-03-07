@@ -15,6 +15,7 @@ interface WorkoutCardListProps {
   onAddEntry: () => WorkoutEntry; // Returns the new entry
   onUpdateEntry: (id: string, updates: Partial<WorkoutEntry>) => void;
   onDeleteEntry: (id: string) => void;
+  onEditEntry?: (id: string) => void; // Called when edit button is clicked
   onSummaryFocusChange?: (isFocused: boolean) => void;
   selectedCardIds?: Set<string>;
   onSelectCard?: (id: string) => void;
@@ -36,6 +37,7 @@ export function WorkoutCardList({
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
+  onEditEntry,
   onSummaryFocusChange,
   selectedCardIds = new Set(),
   onSelectCard,
@@ -95,6 +97,7 @@ export function WorkoutCardList({
         entry={item}
         onUpdate={(updates) => handleUpdate(item.id, updates)}
         onDelete={() => handleDelete(item.id)}
+        onEdit={() => onEditEntry?.(item.id)}
         autoFocus={newlyCreatedId === item.id}
         onSummaryFocusChange={handleSummaryFocusChange}
         isSelected={selectedCardIds.has(item.id)}

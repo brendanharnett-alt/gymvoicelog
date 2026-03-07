@@ -27,6 +27,7 @@ interface WorkoutCardProps {
   entry: WorkoutEntry;
   onUpdate: (updates: Partial<WorkoutEntry>) => void;
   onDelete?: () => void;
+  onEdit?: () => void; // Called when edit button (pen icon) is clicked
   autoFocus?: boolean; // Auto-focus title when true
   onSummaryFocusChange?: (isFocused: boolean) => void;
   isSelected?: boolean;
@@ -82,6 +83,7 @@ export function WorkoutCard({
   entry,
   onUpdate,
   onDelete,
+  onEdit,
   autoFocus = false,
   onSummaryFocusChange,
   isSelected = false,
@@ -153,6 +155,11 @@ export function WorkoutCard({
 
   // Handle edit (expand card)
   const handleEdit = () => {
+    // Call onEdit callback if provided (for API tracking)
+    if (onEdit) {
+      onEdit();
+    }
+    
     if (cardState === 'collapsed') {
       setCardState('expanded');
     }
