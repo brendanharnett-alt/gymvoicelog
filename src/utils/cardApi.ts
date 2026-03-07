@@ -13,15 +13,26 @@ export function editCard(cardId: string, summaryText?: string): void {
     body.summary_text = summaryText;
   }
 
+  console.log('editCard - Making request to:', url);
+  console.log('editCard - Request body:', body);
+
   fetch(url, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
-  }).catch((error) => {
-    console.error('Failed to log card edit:', error);
-  });
+  })
+    .then((response) => {
+      console.log('editCard - Response status:', response.status);
+      if (!response.ok) {
+        console.error('editCard - Response not OK:', response.status, response.statusText);
+      }
+      return response;
+    })
+    .catch((error) => {
+      console.error('Failed to log card edit:', error);
+    });
 }
 
 /**

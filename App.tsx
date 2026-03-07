@@ -216,9 +216,16 @@ export default function App() {
   const handleSaveEntry = (id: string, updates: Partial<WorkoutEntry>) => {
     // Check if this is a voice-created card before updating
     const entry = currentDayWorkout.entries.find(e => e.id === id);
+    console.log('Edit - Card ID:', id);
+    console.log('Edit - Has rawTranscription:', !!entry?.rawTranscription);
+    console.log('Edit - Entry:', entry);
+    
     if (entry?.rawTranscription) {
       // Voice-created card - log edit event (fire-and-forget)
+      console.log('Edit - Calling editCard API with:', { id, summaryText: updates.text });
       editCard(id, updates.text);
+    } else {
+      console.log('Edit - Skipping API call (not voice-created)');
     }
     
     updateEntry(id, updates);
