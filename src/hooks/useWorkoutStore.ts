@@ -329,7 +329,7 @@ export function useWorkoutStore() {
 
     // Create new combined entry with lines
     const combinedEntry: WorkoutEntry = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: generateUUID(),
       text: textContent,
       title: titleText,
       lines: combinedLines,
