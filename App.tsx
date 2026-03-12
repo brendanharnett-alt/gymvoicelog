@@ -346,7 +346,6 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
         <StatusBar style="light" />
-      
       {/* Header */}
       <View style={styles.header}>
         <DateHeader

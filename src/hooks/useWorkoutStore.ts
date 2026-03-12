@@ -112,9 +112,11 @@ export function useWorkoutStore() {
         loaded.forEach((dayWorkout, key) => {
           workoutsByDate.set(key, dayWorkout);
         });
-        setIsLoaded(true);
-        // Trigger re-render to show loaded data
-        setCurrentDate(new Date(currentDate));
+        // Defer state update to next tick to avoid Expo Go crash on immediate re-render (native layer timing)
+        setTimeout(() => {
+          setIsLoaded(true);
+          setCurrentDate(new Date(currentDate));
+        }, 0);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

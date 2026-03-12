@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import { getUserId } from '../utils/userId';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -293,6 +294,9 @@ export function RecordButton({ onRecordingComplete, onRecordingStateChange, onRe
           } else {
             console.warn('WARNING: No card_id available to send to backend!');
           }
+
+          const userId = await getUserId();
+          formData.append('user_id', userId);
 
           const response = await fetch(BACKEND_URL, {
             method: 'POST',
